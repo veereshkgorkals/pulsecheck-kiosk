@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Volume2, Mic, ArrowRight, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Volume2, ArrowRight, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { translations, type Language } from '../i18n';
+import { VoiceRecorder } from './VoiceRecorder';
+import { type TranscriptionResult } from '../services/transcriptionService';
 
 interface IntakeFormProps {
   lang: Language;
@@ -24,7 +26,8 @@ export function IntakeForm({ lang, speak, getTtsButtonClass, onComplete }: Intak
     painSeverity: 5,
     onset: '',
     character: '',
-    aggravating: ''
+    aggravating: '',
+    voiceRecording: null as TranscriptionResult | null
   });
 
   const updateForm = (key: keyof typeof formData, value: any) => {
@@ -40,6 +43,11 @@ export function IntakeForm({ lang, speak, getTtsButtonClass, onComplete }: Intak
       return { ...prev, bodyParts: parts };
     });
     setError('');
+  };
+
+  const handleTranscription = (result: TranscriptionResult) => {
+    updateForm('voiceRecording', result);
+    updateForm('chiefComplaint', result.englishTranslation);
   };
 
   const nextStep = () => {
@@ -165,10 +173,20 @@ export function IntakeForm({ lang, speak, getTtsButtonClass, onComplete }: Intak
                 rows={3}
                 className="w-full border border-slate-300 rounded-md px-4 py-3 focus:ring-2 focus:ring-[var(--color-medical-blue)] outline-none resize-none mb-3"
               />
-              <button className="flex items-center gap-2 text-[var(--color-medical-blue)] bg-blue-50 px-4 py-2 rounded-full font-medium hover:bg-blue-100 transition-colors">
-                <Mic size={18} />
-                {t.recordVoice}
-              </button>
+              <VoiceRecorder lang={lang} onTranscribe={handleTranscription} />
+              
+              {formData.voiceRecording && (
+                <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+                  <div className="mb-2">
+                    <span className="font-semibold text-slate-700 block mb-1">{(t as any).originalTranscript || 'Original Transcript'}</span>
+                    <p className="text-slate-600 italic">"{formData.voiceRecording.originalTranscript}"</p>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-700 block mb-1">{(t as any).englishTranslation || 'English Translation'}</span>
+                    <p className="text-slate-800">"{formData.voiceRecording.englishTranslation}"</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
@@ -314,6 +332,12 @@ export function IntakeForm({ lang, speak, getTtsButtonClass, onComplete }: Intak
               <div className="border-b border-slate-200 pb-4">
                 <span className="block text-xs text-slate-500 uppercase">{t.stepBHeader}</span>
                 <p className="font-medium text-slate-800">{formData.chiefComplaint}</p>
+                {formData.voiceRecording && (
+                  <div className="mt-3">
+                    <span className="block text-xs text-slate-500 uppercase mb-1">{(t as any).originalAudio || 'Original Audio'}</span>
+                    <audio src={formData.voiceRecording.audioBlobUrl} controls className="w-full max-w-sm h-8" />
+                  </div>
+                )}
                 {formData.bodyParts.length > 0 && (
                   <div className="mt-2 text-sm text-slate-600">
                     Areas: {formData.bodyParts.join(', ')}
