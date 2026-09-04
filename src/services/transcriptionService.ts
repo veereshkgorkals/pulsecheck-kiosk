@@ -6,15 +6,8 @@ export interface TranscriptionResult {
   audioBlobUrl: string;
 }
 
-const mockTranscripts: Record<Language, { native: string; english: string }> = {
-  en: { native: "I've been having this sharp pain in my chest since yesterday morning, and it hurts when I breathe deeply.", english: "I've been having this sharp pain in my chest since yesterday morning, and it hurts when I breathe deeply." },
-  es: { native: "Tengo un dolor agudo en el pecho desde ayer por la mañana y me duele al respirar profundo.", english: "I have a sharp pain in my chest since yesterday morning and it hurts when I breathe deeply." },
-  hi: { native: "कल सुबह से मेरे सीने में तेज दर्द हो रहा है, और गहरी सांस लेने पर बहुत दर्द होता है।", english: "I have been having severe chest pain since yesterday morning, and it hurts a lot when taking deep breaths." },
-  zh: { native: "从昨天早上开始我的胸口就有一阵阵刺痛，深呼吸的时候特别疼。", english: "I have had shooting pains in my chest since yesterday morning, and it hurts especially when I take deep breaths." },
-  fr: { native: "J'ai une douleur aiguë dans la poitrine depuis hier matin, et ça fait mal quand je respire profondément.", english: "I have a sharp pain in my chest since yesterday morning, and it hurts when I breathe deeply." }
-};
 
-export const transcribeAudioBlob = async (audioBlob: Blob, lang: Language): Promise<TranscriptionResult> => {
+export const transcribeAudioBlob = async (audioBlob: Blob, lang: Language, liveTranscript?: string): Promise<TranscriptionResult> => {
   const audioBlobUrl = URL.createObjectURL(audioBlob);
 
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_OPENAI_API_KEY;
@@ -45,13 +38,21 @@ export const transcribeAudioBlob = async (audioBlob: Blob, lang: Language): Prom
   }
 
   // Fallback to simulation to ensure the demo never breaks
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     setTimeout(() => {
+      const finalNative = (liveTranscript && liveTranscript.trim().length > 0) ? liveTranscript.trim() : '';
+      const finalEnglish = (liveTranscript && liveTranscript.trim().length > 0) ? liveTranscript.trim() : '';
+      
+      if (!finalNative) {
+        reject(new Error("NO_SPEECH"));
+        return;
+      }
+      
       resolve({
-        originalTranscript: mockTranscripts[lang].native,
-        englishTranslation: mockTranscripts[lang].english,
+        originalTranscript: finalNative,
+        englishTranslation: finalEnglish,
         audioBlobUrl
       });
-    }, 2000); // simulate network delay
+    }, 1000); // simulate network delay
   });
 };
