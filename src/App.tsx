@@ -3,12 +3,14 @@ import { AlertTriangle, Stethoscope, Settings, Phone, Volume2, CheckCircle } fro
 import { motion } from 'framer-motion';
 import { type Language, languageNames, languageCodes, translations } from './i18n';
 import { IntakeForm } from './components/IntakeForm';
+import { type ClinicalSummary } from './services/aiSummarizerService';
 import './index.css';
 
 function App() {
   const [view, setView] = useState<'triage' | 'alert' | 'intake' | 'success'>('triage');
   const [lang, setLang] = useState<Language>('en');
   const [speakingText, setSpeakingText] = useState<string | null>(null);
+  const [finalSummary, setFinalSummary] = useState<ClinicalSummary | null>(null);
 
   const t = translations[lang];
 
@@ -172,23 +174,27 @@ function App() {
             lang={lang} 
             speak={speak} 
             getTtsButtonClass={getTtsButtonClass} 
-            onComplete={() => { setSpeakingText(null); setView('success'); }} 
+            onComplete={(summary) => { 
+              setSpeakingText(null); 
+              setFinalSummary(summary);
+              setView('success'); 
+            }} 
           />
         )}
 
         {view === 'success' && (
-          <div className="w-full max-w-lg bg-white rounded-xl shadow-lg border-t-8 border-green-500 p-12 text-center mt-6">
+          <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg border-t-8 border-green-500 p-8 text-center mt-6">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', stiffness: 200, damping: 10 }}
-              className="flex justify-center mb-6 text-green-500"
+              className="flex justify-center mb-4 text-green-500"
             >
-              <CheckCircle size={80} />
+              <CheckCircle size={64} />
             </motion.div>
             
-            <div className="flex justify-center items-center gap-3 mb-4">
-              <h3 className="text-3xl font-bold text-slate-800">{t.successMsg}</h3>
+            <div className="flex justify-center items-center gap-3 mb-8">
+              <h3 className="text-2xl font-bold text-slate-800">{t.successMsg}</h3>
               <button 
                 onClick={() => speak(t.successMsg)}
                 className={getTtsButtonClass(t.successMsg)}
@@ -196,10 +202,58 @@ function App() {
                 <Volume2 size={24} />
               </button>
             </div>
+
+            {finalSummary && (
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 text-left mb-8 shadow-sm">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <Stethoscope size={20} className="text-[var(--color-medical-blue)]" />
+                    Clinical HPI Summary Preview
+                  </h4>
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
+                    finalSummary.aiUrgency === 'high' ? 'bg-red-100 text-red-700' :
+                    finalSummary.aiUrgency === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-green-100 text-green-700'
+                  }`}>
+                    {finalSummary.aiUrgency} Urgency
+                  </span>
+                </div>
+                
+                <div className="space-y-4 text-sm text-slate-700">
+                  <div>
+                    <span className="font-semibold text-slate-500 uppercase text-xs block mb-1">Chief Complaint</span>
+                    <p className="font-bold text-slate-900 text-base">{finalSummary.analyzedChiefComplaint}</p>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 uppercase text-xs block mb-1">Timeline & Onset</span>
+                    <p className="font-medium text-slate-800">{finalSummary.timeline}</p>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 uppercase text-xs block mb-1">Key Clinical Findings</span>
+                    <ul className="list-disc pl-5 space-y-1 bg-white p-3 rounded border border-slate-200">
+                      {finalSummary.clinicalBulletPoints.map((pt, i) => (
+                        <li key={i}>{pt}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="flex gap-2 flex-wrap mt-4 pt-4 border-t border-slate-200">
+                    <span className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs font-semibold">
+                      Pain Score: {finalSummary.aiAssignedPainSeverity}/10
+                    </span>
+                    {finalSummary.affectedAnatomy.map(tag => (
+                      <span key={tag} className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs border border-slate-200">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
             
             <button 
-              onClick={() => { setSpeakingText(null); setView('triage'); }}
-              className="mt-8 flex items-center justify-center w-full gap-2 px-6 py-3 rounded-lg font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+              onClick={() => { setSpeakingText(null); setFinalSummary(null); setView('triage'); }}
+              className="flex items-center justify-center w-full gap-2 px-6 py-3 rounded-lg font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
             >
               {t.backToStart}
             </button>
