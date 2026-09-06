@@ -1,13 +1,17 @@
 import { type ClinicalSummary } from '../services/aiSummarizerService';
 
-const STORAGE_KEY = 'pulsecheck_patients';
+const STORAGE_KEY = 'pulsecheck_patients_queue';
 
 export const savePatientSummary = (summary: ClinicalSummary) => {
   try {
-    const existingStr = localStorage.getItem(STORAGE_KEY);
-    const existing: ClinicalSummary[] = existingStr ? JSON.parse(existingStr) : [];
-    
-    existing.unshift(summary); // Add to beginning of queue
+    const existing = getPatientQueue();
+    // Overwrite if it exists (for updates like escalate/mark as seen)
+    const index = existing.findIndex(p => p.id === summary.id);
+    if (index >= 0) {
+      existing[index] = summary;
+    } else {
+      existing.unshift(summary); // Add to beginning of queue
+    }
     
     localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
   } catch (err) {
@@ -15,10 +19,21 @@ export const savePatientSummary = (summary: ClinicalSummary) => {
   }
 };
 
+const getMockPatients = (): ClinicalSummary[] => {
+  return [];
+};
+
 export const getPatientQueue = (): ClinicalSummary[] => {
   try {
     const existingStr = localStorage.getItem(STORAGE_KEY);
-    return existingStr ? JSON.parse(existingStr) : [];
+    if (existingStr) {
+      return JSON.parse(existingStr);
+    } else {
+      // Pre-populate realistic mock patients if storage is empty
+      const mocks = getMockPatients();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(mocks));
+      return mocks;
+    }
   } catch (err) {
     console.error('Failed to retrieve patient queue from local storage', err);
     return [];

@@ -28,6 +28,7 @@ export interface AIAnalysisResult {
 }
 
 export interface ClinicalSummary extends AIAnalysisResult {
+  id: string;
   patientInfo: {
     name: string;
     dob: string;
@@ -35,6 +36,13 @@ export interface ClinicalSummary extends AIAnalysisResult {
   };
   reportedLanguage: string;
   timestamp: string;
+  status: 'waiting' | 'seen';
+  isEscalated: boolean;
+  voiceRecording?: {
+    originalTranscript: string;
+    englishTranslation: string;
+    audioBlobUrl: string;
+  } | null;
 }
 
 export const analyzeNarrative = async (
@@ -162,6 +170,7 @@ export const generateFinalSummary = (
 
   return {
     ...analysis,
+    id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
     timeline: finalTimeline,
     patientInfo: {
       name: `${data.firstName} ${data.lastName}`,
@@ -169,6 +178,9 @@ export const generateFinalSummary = (
       phone: data.phone
     },
     reportedLanguage: data.language,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    status: 'waiting',
+    isEscalated: false,
+    voiceRecording: data.voiceRecording
   };
 };

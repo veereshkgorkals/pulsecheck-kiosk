@@ -112,7 +112,7 @@ export function IntakeForm({ lang, speak, getTtsButtonClass, onComplete }: Intak
         throw new Error('AI analysis missing');
       }
       
-      const summary = generateFinalSummary(formData as any, formData.aiAnalysis);
+      const summary = generateFinalSummary({ ...formData, language: lang } as any, formData.aiAnalysis);
       savePatientSummary(summary);
       onComplete(summary);
     } catch (err) {

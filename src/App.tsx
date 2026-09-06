@@ -4,10 +4,12 @@ import { motion } from 'framer-motion';
 import { type Language, languageNames, languageCodes, translations } from './i18n';
 import { IntakeForm } from './components/IntakeForm';
 import { type ClinicalSummary } from './services/aiSummarizerService';
+import { DoctorDashboard } from './pages/DoctorDashboard';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 
 function App() {
-  const [view, setView] = useState<'triage' | 'alert' | 'intake' | 'success'>('triage');
+  const [view, setView] = useState<'triage' | 'alert' | 'intake' | 'success' | 'doctor'>('triage');
   const [lang, setLang] = useState<Language>('en');
   const [speakingText, setSpeakingText] = useState<string | null>(null);
   const [finalSummary, setFinalSummary] = useState<ClinicalSummary | null>(null);
@@ -43,6 +45,14 @@ function App() {
         : 'text-[var(--color-medical-slate)] hover:bg-slate-200 bg-slate-100'
     }`;
 
+  if (view === 'doctor') {
+    return (
+      <ErrorBoundary>
+        <DoctorDashboard onClose={() => setView('triage')} />
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[var(--color-medical-slate-light)] flex flex-col font-sans">
       <header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center border-b-4 border-[var(--color-medical-blue)] flex-wrap gap-4">
@@ -52,6 +62,13 @@ function App() {
         </div>
         
         <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setView('doctor')}
+            className="text-sm font-bold text-[var(--color-medical-blue)] bg-blue-50 px-3 py-1.5 rounded-md hover:bg-blue-100 transition-colors"
+          >
+            [Switch to Doctor Portal]
+          </button>
+          
           <select 
             value={lang}
             onChange={(e) => setLang(e.target.value as Language)}
