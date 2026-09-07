@@ -30,6 +30,29 @@ export const getRegisteredDoctors = (): DoctorAccount[] => {
   return [];
 };
 
+export const getAvailableDoctors = (): DoctorAccount[] => {
+  const docs = getRegisteredDoctors();
+  if (docs.length > 0) return docs;
+  
+  // Default on-duty physicians if none registered
+  return [
+    {
+      doctorId: 'DOC-2026-001',
+      fullName: 'Dr. Sarah Chen, MD',
+      email: 'schen@hospital.org',
+      department: 'Emergency Medicine',
+      createdAt: new Date().toISOString()
+    },
+    {
+      doctorId: 'DOC-2026-002',
+      fullName: 'Dr. Rajesh Kumar, MD',
+      email: 'rkumar@hospital.org',
+      department: 'General Medicine',
+      createdAt: new Date().toISOString()
+    }
+  ];
+};
+
 export const registerDoctor = (account: Omit<DoctorAccount, 'doctorId' | 'createdAt'>): DoctorAccount => {
   const doctors = getRegisteredDoctors();
   

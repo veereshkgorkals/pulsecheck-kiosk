@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Volume2, ArrowRight, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { translations, type Language } from '../i18n';
 import { VoiceRecorder } from './VoiceRecorder';
@@ -6,6 +6,7 @@ import { type TranscriptionResult } from '../services/transcriptionService';
 import { generateFinalSummary, analyzeNarrative, type ClinicalSummary, type AIAnalysisResult } from '../services/aiSummarizerService';
 import { savePatientSummary } from '../utils/storage';
 import { getNextTokenNumber } from '../utils/tokenManager';
+import { getAvailableDoctors, type DoctorAccount } from '../services/authService';
 import { Loader2 } from 'lucide-react';
 
 interface IntakeFormProps {
@@ -34,8 +35,17 @@ export function IntakeForm({ lang, speak, getTtsButtonClass, onComplete }: Intak
     character: '',
     aggravating: '',
     voiceRecording: null as TranscriptionResult | null,
-    aiAnalysis: null as AIAnalysisResult | null
+    aiAnalysis: null as AIAnalysisResult | null,
+    assignedDoctorId: '',
+    assignedDoctorName: '',
+    assignedDepartment: ''
   });
+
+  const [availableDoctors, setAvailableDoctors] = useState<DoctorAccount[]>([]);
+
+  useEffect(() => {
+    setAvailableDoctors(getAvailableDoctors());
+  }, []);
 
   const updateForm = (key: keyof typeof formData, value: any) => {
     setFormData(prev => ({ ...prev, [key]: value }));
@@ -96,6 +106,12 @@ export function IntakeForm({ lang, speak, getTtsButtonClass, onComplete }: Intak
         console.error('Narrative analysis failed', err);
         setError('Failed to analyze clinical narrative.');
         setIsSubmitting(false);
+        return;
+      }
+    }
+    if (step === 2) {
+      if (!formData.assignedDoctorId) {
+        setError((t as any).requiredErr || 'Please fill in all required fields.');
         return;
       }
     }
@@ -374,6 +390,42 @@ export function IntakeForm({ lang, speak, getTtsButtonClass, onComplete }: Intak
                 className="w-full border border-slate-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-[var(--color-medical-blue)] outline-none"
               />
             </div>
+
+            <div className="pt-6 border-t border-slate-200">
+              <label className="block text-lg font-bold text-slate-800 mb-4">
+                {(t as any).selectPhysician || 'Select Consulting Physician & Department'} *
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {availableDoctors.map(doc => (
+                  <button
+                    key={doc.doctorId}
+                    onClick={() => {
+                      updateForm('assignedDoctorId', doc.doctorId);
+                      updateForm('assignedDoctorName', doc.fullName);
+                      updateForm('assignedDepartment', doc.department);
+                    }}
+                    className={`text-left p-4 rounded-xl border-2 transition-all ${
+                      formData.assignedDoctorId === doc.doctorId
+                        ? 'border-[var(--color-medical-blue)] bg-blue-50 shadow-md'
+                        : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="font-bold text-slate-900">{doc.fullName}</span>
+                      <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                        {(t as any).onDuty || 'On Duty'}
+                      </span>
+                    </div>
+                    <div className="text-sm text-slate-500 flex items-center gap-2">
+                      <span className="bg-slate-200 px-2 py-0.5 rounded text-xs font-semibold text-slate-700">
+                        {doc.department}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -440,6 +492,13 @@ export function IntakeForm({ lang, speak, getTtsButtonClass, onComplete }: Intak
                     <span className="font-medium">Aggravating/Relieving:</span> {formData.aggravating}
                   </p>
                 )}
+              </div>
+
+              <div className="pt-4 border-t border-slate-200">
+                <span className="block text-xs text-slate-500 uppercase mb-1">{(t as any).assignedPhysician || 'Assigned Physician'}</span>
+                <p className="font-bold text-slate-800 text-lg">
+                  {formData.assignedDoctorName} <span className="text-sm font-medium text-slate-500">({formData.assignedDepartment})</span>
+                </p>
               </div>
             </div>
           </div>

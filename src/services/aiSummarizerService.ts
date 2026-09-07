@@ -15,6 +15,9 @@ export interface PatientIntakeData {
     audioBlobUrl: string;
   } | null;
   language: string;
+  assignedDoctorId: string;
+  assignedDoctorName: string;
+  assignedDepartment: string;
 }
 
 export interface AIAnalysisResult {
@@ -44,6 +47,9 @@ export interface ClinicalSummary extends AIAnalysisResult {
     englishTranslation: string;
     audioBlobUrl: string;
   } | null;
+  assignedDoctorId?: string;
+  assignedDoctorName?: string;
+  assignedDepartment?: string;
 }
 
 export const analyzeNarrative = async (
@@ -182,6 +188,9 @@ export const generateFinalSummary = (
     timestamp: new Date().toISOString(),
     status: 'waiting',
     isEscalated: false,
-    voiceRecording: data.voiceRecording
+    voiceRecording: data.voiceRecording,
+    assignedDoctorId: data.assignedDoctorId,
+    assignedDoctorName: data.assignedDoctorName,
+    assignedDepartment: data.assignedDepartment
   };
 };

@@ -46,14 +46,21 @@ export function DoctorDashboard({ onClose }: DoctorDashboardProps) {
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
+  const [showAll, setShowAll] = useState(false);
+
   const filteredPatients = useMemo(() => {
     return patients.filter(p => {
+      // Doctor Isolation Filtering
+      if (!showAll && staffUser && p.assignedDoctorId !== staffUser.doctorId) {
+        return false;
+      }
+      
       if (filter === 'All') return true;
       if (filter === 'High Urgency') return p.status === 'waiting' && (p.aiUrgency === 'high' || p.isEscalated);
       if (filter === 'Waiting') return p.status === 'waiting';
       return true;
     });
-  }, [patients, filter]);
+  }, [patients, filter, showAll, staffUser]);
 
   const selectedPatient = patients.find(p => p.id === selectedPatientId) || null;
 
@@ -188,7 +195,20 @@ AFFECTED ANATOMY: ${affectedAnatomy.join(', ')}`;
         {/* LEFT PANEL: QUEUE */}
         <div className="w-full md:w-1/3 lg:w-1/4 bg-white border-r border-slate-200 overflow-y-auto flex flex-col shrink-0">
           <div className="p-4 border-b border-slate-100 bg-slate-50 sticky top-0 z-10">
-            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Patient Queue</h2>
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">
+                {showAll ? 'All Clinic Intakes' : `My Assigned Patients (${filteredPatients.length})`}
+              </h2>
+            </div>
+            <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={showAll} 
+                onChange={(e) => setShowAll(e.target.checked)}
+                className="rounded border-slate-300 text-[var(--color-medical-blue)] focus:ring-[var(--color-medical-blue)]"
+              />
+              Show All Clinic Intakes
+            </label>
           </div>
           
           <div className="divide-y divide-slate-100">

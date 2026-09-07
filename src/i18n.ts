@@ -72,6 +72,10 @@ export const translations = {
     estimatedWait: 'Queue Status:',
     patientsAhead: 'patients ahead of you',
     savePrintToken: 'Save / Print Token',
+    selectPhysician: 'Select Consulting Physician',
+    department: 'Department',
+    assignedPhysician: 'Assigned Physician',
+    onDuty: 'On Duty',
   },
   es: {
     emergencyHeader: 'Si experimenta una emergencia que pone en peligro su vida, deténgase y avise al personal de inmediato.',
@@ -128,6 +132,10 @@ export const translations = {
     estimatedWait: 'Estado de la Fila:',
     patientsAhead: 'pacientes delante de usted',
     savePrintToken: 'Guardar / Imprimir Turno',
+    selectPhysician: 'Seleccionar Médico Consultor',
+    department: 'Departamento',
+    assignedPhysician: 'Médico Asignado',
+    onDuty: 'De Guardia',
   },
   hi: {
     emergencyHeader: 'यदि आप जीवन-खतरे वाली आपात स्थिति का अनुभव कर रहे हैं, तो रुकें और तुरंत कर्मचारियों को सचेत करें।',
@@ -184,6 +192,10 @@ export const translations = {
     estimatedWait: 'कतार की स्थिति:',
     patientsAhead: 'मरीज़ आपके आगे हैं',
     savePrintToken: 'टोकन सहेजें / प्रिंट करें',
+    selectPhysician: 'परामर्शदाता चिकित्सक चुनें',
+    department: 'विभाग',
+    assignedPhysician: 'निर्दिष्ट चिकित्सक',
+    onDuty: 'ड्यूटी पर',
   },
   zh: {
     emergencyHeader: '如果您正在经历危及生命的紧急情况，请停止并立即联系工作人员。',
@@ -240,6 +252,10 @@ export const translations = {
     estimatedWait: '排队状态:',
     patientsAhead: '位患者在您前面',
     savePrintToken: '保存 / 打印号码',
+    selectPhysician: '选择咨询医生',
+    department: '部门',
+    assignedPhysician: '指定医生',
+    onDuty: '值班中',
   },
   fr: {
     emergencyHeader: 'Si vous rencontrez une urgence potentiellement mortelle, arrêtez-vous et alertez immédiatement le personnel.',
@@ -296,5 +312,9 @@ export const translations = {
     estimatedWait: 'Statut de la file :',
     patientsAhead: 'patients devant vous',
     savePrintToken: 'Sauvegarder / Imprimer le ticket',
+    selectPhysician: 'Sélectionner le Médecin Consultant',
+    department: 'Département',
+    assignedPhysician: 'Médecin Assigné',
+    onDuty: 'De Garde',
   }
 };
