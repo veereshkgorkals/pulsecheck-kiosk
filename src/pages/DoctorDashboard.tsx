@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { getPatientQueue, savePatientSummary } from '../utils/storage';
 import { type ClinicalSummary } from '../services/aiSummarizerService';
 import { getAuthenticatedStaff, logoutStaff, type StaffUser } from '../services/authService';
-import { StaffLogin } from '../components/StaffLogin';
+import { DoctorAuthModal } from '../components/DoctorAuthModal';
 import { Stethoscope, ClipboardCopy, CheckCircle2, Clock, AlertTriangle, Volume2, ChevronDown, ChevronUp, User, Activity, FileText, LogOut } from 'lucide-react';
 
 interface DoctorDashboardProps {
@@ -130,7 +130,7 @@ AFFECTED ANATOMY: ${affectedAnatomy.join(', ')}`;
   if (!staffUser) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-        <StaffLogin onAuthenticated={setStaffUser} onCancel={onClose} />
+        <DoctorAuthModal onAuthenticated={setStaffUser} onCancel={onClose} />
       </div>
     );
   }
@@ -166,8 +166,8 @@ AFFECTED ANATOMY: ${affectedAnatomy.join(', ')}`;
           
           <div className="flex items-center gap-4 border-l border-slate-700 pl-4">
             <div className="text-right hidden md:block">
-              <div className="text-sm font-bold">{staffUser.name}</div>
-              <div className="text-xs text-slate-400">Badge: {staffUser.badgeId}</div>
+              <div className="text-sm font-bold">{staffUser.fullName} | {staffUser.department}</div>
+              <div className="text-xs text-slate-400">ID: {staffUser.doctorId}</div>
             </div>
             
             <button 
@@ -176,7 +176,7 @@ AFFECTED ANATOMY: ${affectedAnatomy.join(', ')}`;
               title="Log out"
             >
               <LogOut size={16} />
-              <span className="text-sm font-bold">Log out</span>
+              <span className="text-sm font-bold">Logout / Lock Session</span>
             </button>
           </div>
         </div>

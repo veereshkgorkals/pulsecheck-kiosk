@@ -1,24 +1,76 @@
+export interface DoctorAccount {
+  doctorId: string;
+  fullName: string;
+  email: string;
+  password?: string;
+  department: string;
+  createdAt: string;
+}
+
 export interface StaffUser {
-  name: string;
-  role: string;
-  badgeId: string;
+  doctorId: string;
+  fullName: string;
+  email: string;
+  department: string;
 }
 
 const SESSION_KEY = 'pulsecheck_staff_session';
+const DOCTORS_KEY = 'pulsecheck_registered_doctors';
+export const ADMIN_KEY = 'HOSP-PULSE-2026';
 
-export const loginStaff = (badgeId: string, pin: string): StaffUser | null => {
-  const isBadgeValid = badgeId === 'DR-7821';
-  const isPinValid = pin === '1234' || pin === '9999' || pin === 'pulsecheck2026';
+export const getRegisteredDoctors = (): DoctorAccount[] => {
+  const data = localStorage.getItem(DOCTORS_KEY);
+  if (data) {
+    try {
+      return JSON.parse(data);
+    } catch (e) {
+      return [];
+    }
+  }
+  return [];
+};
 
-  if (isBadgeValid && isPinValid) {
+export const registerDoctor = (account: Omit<DoctorAccount, 'doctorId' | 'createdAt'>): DoctorAccount => {
+  const doctors = getRegisteredDoctors();
+  
+  if (doctors.some(doc => doc.email.toLowerCase() === account.email.toLowerCase())) {
+    throw new Error('Email already exists.');
+  }
+
+  const seq = (doctors.length + 1).toString().padStart(3, '0');
+  const doctorId = `DOC-2026-${seq}`;
+  
+  const newDoctor: DoctorAccount = {
+    ...account,
+    doctorId,
+    createdAt: new Date().toISOString()
+  };
+
+  doctors.push(newDoctor);
+  localStorage.setItem(DOCTORS_KEY, JSON.stringify(doctors));
+  
+  return newDoctor;
+};
+
+export const loginDoctor = (identifier: string, pin: string): StaffUser | null => {
+  const doctors = getRegisteredDoctors();
+  const lowerId = identifier.toLowerCase();
+  
+  const doctor = doctors.find(doc => 
+    doc.doctorId.toLowerCase() === lowerId || doc.email.toLowerCase() === lowerId
+  );
+
+  if (doctor && doctor.password === pin) {
     const user: StaffUser = {
-      name: 'Dr. Sarah Chen, MD',
-      role: 'Attending Physician',
-      badgeId: 'DR-7821'
+      doctorId: doctor.doctorId,
+      fullName: doctor.fullName,
+      email: doctor.email,
+      department: doctor.department
     };
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
     return user;
   }
+  
   return null;
 };
 
