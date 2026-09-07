@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, Stethoscope, Settings, Phone, Volume2, CheckCircle, Printer } from 'lucide-react';
+import { AlertTriangle, Stethoscope, Settings, Phone, Volume2, CheckCircle, Printer, Copy, Smartphone, MessageSquare, Clock, Calendar, MapPin } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { type Language, languageNames, languageCodes, translations } from './i18n';
 import { IntakeForm } from './components/IntakeForm';
@@ -15,12 +15,77 @@ function App() {
   const [speakingText, setSpeakingText] = useState<string | null>(null);
   const [finalSummary, setFinalSummary] = useState<ClinicalSummary | null>(null);
 
-  const t = translations[lang];
+  const [showSmsToast, setShowSmsToast] = useState(false);
+  const [copiedSuccess, setCopiedSuccess] = useState(false);
+
+  const t = translations[lang] as any; // Cast as any because we added new keys dynamically
 
   useEffect(() => {
     window.speechSynthesis.cancel();
     setSpeakingText(null);
   }, [lang]);
+
+  useEffect(() => {
+    if (view === 'success' && finalSummary?.tokenNumber) {
+      setShowSmsToast(true);
+      const timer = setTimeout(() => setShowSmsToast(false), 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [view, finalSummary]);
+
+  const getDigitalTokenMessage = () => {
+    if (!finalSummary) return '';
+    const patientFirstName = finalSummary.patientInfo?.name?.split(' ')[0] || "Patient";
+    const formattedDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const formattedTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    
+    const patientsAheadCount = Math.max(0, getPatientQueue().filter(p => p.status === 'waiting').length - 1);
+    const estWait = patientsAheadCount * 5;
+
+    return `🏥 *PulseCheck Hospital • OPD Digital Token*
+━━━━━━━━━━━━━━━━━━━━
+👋 Hello *${patientFirstName}*, your consultation is confirmed!
+
+🎟️ *TOKEN NUMBER:* *${finalSummary.tokenNumber}*
+👨‍⚕️ *Consulting Doctor:* Dr. ${finalSummary.assignedDoctorName}
+🩺 *Department:* ${finalSummary.assignedDepartment}
+⏱️ *Est. Wait Time:* ~${estWait || "20"} mins (${patientsAheadCount || "1"} patients ahead)
+📅 *Time:* Today, ${formattedDate} • ${formattedTime}
+
+📍 *Next Steps:*
+• Please proceed to the *OPD Waiting Lounge*.
+• Watch the display monitors for your token *${finalSummary.tokenNumber}*.
+• Your AI triage summary is already on the doctor's screen.
+
+_PulseCheck Smart Intake System_`;
+  };
+
+  const handleShare = async () => {
+    const msg = getDigitalTokenMessage();
+    if (!msg) return;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Hospital Appointment Token',
+          text: msg
+        });
+      } catch (err) {
+        console.error('Share failed', err);
+      }
+    } else {
+      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+      window.open(whatsappUrl, '_blank');
+    }
+  };
+
+  const handleCopy = () => {
+    const msg = getDigitalTokenMessage();
+    if (!msg) return;
+    navigator.clipboard.writeText(msg);
+    setCopiedSuccess(true);
+    setTimeout(() => setCopiedSuccess(false), 2000);
+  };
 
   const speak = (text: string) => {
     if (speakingText === text) {
@@ -164,7 +229,7 @@ function App() {
                 </div>
                 
                 <ul className="list-disc list-inside text-red-900 space-y-2 text-lg font-medium">
-                  {t.symptoms.map((symptom, idx) => (
+                  {t.symptoms.map((symptom: string, idx: number) => (
                     <li key={idx}>{symptom}</li>
                   ))}
                 </ul>
@@ -242,7 +307,34 @@ function App() {
         )}
 
         {view === 'success' && (
-          <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg border-t-8 border-green-500 p-8 text-center mt-6">
+          <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg border-t-8 border-green-500 p-8 text-center mt-6 relative">
+            
+            {/* SIMULATED SMS TOAST NOTIFICATION */}
+            {showSmsToast && finalSummary?.patientInfo?.phone && (
+              <motion.div 
+                initial={{ opacity: 0, y: -50 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -50 }}
+                className="absolute -top-4 left-1/2 -translate-x-1/2 w-11/12 max-w-md bg-white shadow-2xl rounded-2xl overflow-hidden border border-slate-200 z-50 cursor-pointer"
+                onClick={() => setShowSmsToast(false)}
+              >
+                <div className="bg-slate-100/50 px-4 py-2 flex items-center justify-between border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-green-500 w-6 h-6 rounded flex items-center justify-center">
+                      <MessageSquare size={14} className="text-white" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-600">{t.hospitalDispatch || 'Hospital Dispatch • Just now'}</span>
+                  </div>
+                </div>
+                <div className="p-4 text-left">
+                  <p className="text-sm font-medium text-slate-800">
+                    <span className="text-slate-500 block text-xs mb-1 uppercase">{t.smsDispatched || 'SMS dispatched to'} {finalSummary.patientInfo.phone}:</span>
+                    "PulseCheck Confirmed: Token {finalSummary.tokenNumber} assigned for {finalSummary.assignedDoctorName} ({finalSummary.assignedDepartment}). Please wait for your turn."
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
@@ -264,30 +356,99 @@ function App() {
 
             {finalSummary && (
               <>
-                {/* TOKEN TICKET CARD */}
+                {/* UNIFIED DIGITAL TOKEN TICKET CARD */}
                 {finalSummary.tokenNumber && (
-                  <div className="bg-slate-900 text-white rounded-xl p-6 mb-8 shadow-md border-4 border-slate-800 border-dashed relative overflow-hidden">
-                    <div className="text-slate-400 font-bold tracking-widest text-sm mb-2">{t.queueTokenNumber}</div>
-                    <div className="text-6xl font-black mb-2 text-[var(--color-medical-blue)] bg-white inline-block px-8 py-4 rounded-lg shadow-inner">
-                      {finalSummary.tokenNumber}
+                  <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden mb-8 max-w-md mx-auto relative">
+                    {/* Header Section */}
+                    <div className="bg-slate-900 text-white p-6 text-left relative overflow-hidden">
+                      <div className="absolute top-0 right-0 opacity-10 text-9xl -mt-4 -mr-4 pointer-events-none">🏥</div>
+                      <div className="flex items-center gap-2 text-blue-300 font-bold text-sm tracking-widest uppercase mb-4 relative z-10">
+                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                        OPD Digital Token
+                      </div>
+                      <h3 className="text-2xl font-bold mb-1 relative z-10">
+                        Hello {finalSummary.patientInfo?.name?.split(' ')[0] || "Patient"},
+                      </h3>
+                      <p className="text-slate-300 text-sm relative z-10">Your consultation is confirmed!</p>
+                      
+                      <div className="mt-8 mb-2 relative z-10">
+                        <div className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Token Number</div>
+                        <div className="text-5xl font-black text-white">{finalSummary.tokenNumber}</div>
+                      </div>
                     </div>
-                    <div className="text-slate-300 text-sm mb-6 max-w-sm mx-auto">
-                      Please take a screenshot or note this number. The physician will call you using this token.
+
+                    {/* Details Section */}
+                    <div className="bg-slate-50 p-6 text-left border-b border-slate-200 border-dashed">
+                      <div className="space-y-4">
+                        <div className="flex items-start gap-3">
+                          <div className="bg-white p-2 rounded shadow-sm"><Stethoscope size={18} className="text-blue-600" /></div>
+                          <div>
+                            <div className="text-xs text-slate-500 font-bold uppercase">Consulting Doctor</div>
+                            <div className="font-bold text-slate-900">Dr. {finalSummary.assignedDoctorName}</div>
+                            <div className="text-sm text-slate-600">{finalSummary.assignedDepartment}</div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-start gap-3">
+                          <div className="bg-white p-2 rounded shadow-sm"><Clock size={18} className="text-orange-500" /></div>
+                          <div>
+                            <div className="text-xs text-slate-500 font-bold uppercase">Est. Wait Time</div>
+                            <div className="font-bold text-slate-900">
+                              ~{Math.max(0, getPatientQueue().filter(p => p.status === 'waiting').length - 1) * 5} mins
+                            </div>
+                            <div className="text-sm text-slate-600">
+                              {Math.max(0, getPatientQueue().filter(p => p.status === 'waiting').length - 1)} {t.patientsAhead || 'patients ahead'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-3">
+                          <div className="bg-white p-2 rounded shadow-sm"><Calendar size={18} className="text-purple-500" /></div>
+                          <div>
+                            <div className="text-xs text-slate-500 font-bold uppercase">Time</div>
+                            <div className="font-bold text-slate-900">Today, {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                            <div className="text-sm text-slate-600">{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    
-                    <div className="bg-slate-800 rounded-lg p-3 inline-block mb-6">
-                      <span className="font-semibold text-slate-400">{t.estimatedWait}</span>{' '}
-                      <span className="text-lg font-bold text-white">
-                        {Math.max(0, getPatientQueue().filter(p => p.status === 'waiting').length - 1)} {t.patientsAhead}
-                      </span>
+
+                    {/* Next Steps */}
+                    <div className="p-6 text-left bg-white border-b border-slate-100">
+                      <div className="text-xs text-slate-500 font-bold uppercase mb-3 flex items-center gap-2">
+                        <MapPin size={16} /> Next Steps
+                      </div>
+                      <ul className="text-sm text-slate-700 space-y-2 list-disc list-inside ml-1 marker:text-blue-500">
+                        <li>Please proceed to the <strong>OPD Waiting Lounge</strong>.</li>
+                        <li>Watch the monitors for token <strong>{finalSummary.tokenNumber}</strong>.</li>
+                        <li>Your AI triage notes are with the doctor.</li>
+                      </ul>
                     </div>
-                    
-                    <div>
+
+                    {/* Action Buttons */}
+                    <div className="p-4 bg-slate-50 flex flex-col sm:flex-row gap-3">
+                      <button 
+                        onClick={handleShare}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white transition-colors px-4 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 shadow-sm"
+                      >
+                        <Smartphone size={18} /> {t.receiveTicketSms || 'WhatsApp Token'}
+                      </button>
+                      <button 
+                        onClick={handleCopy}
+                        className="flex-1 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors px-4 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 shadow-sm relative overflow-hidden"
+                      >
+                        {copiedSuccess ? (
+                          <span className="text-green-600 flex items-center gap-2"><CheckCircle size={18} /> Copied to Clipboard!</span>
+                        ) : (
+                          <><Copy size={18} /> Copy WhatsApp Text</>
+                        )}
+                      </button>
                       <button 
                         onClick={() => window.print()}
-                        className="bg-white text-slate-900 hover:bg-slate-200 transition-colors px-6 py-2 rounded-full font-bold text-sm inline-flex items-center gap-2"
+                        className="p-3 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg transition-colors flex items-center justify-center"
+                        title="Print Ticket"
                       >
-                        <Printer size={16} /> {t.savePrintToken}
+                        <Printer size={18} />
                       </button>
                     </div>
                   </div>
