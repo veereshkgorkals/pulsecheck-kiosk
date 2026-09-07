@@ -5,6 +5,7 @@ export interface DoctorAccount {
   password?: string;
   department: string;
   createdAt: string;
+  isOnDuty?: boolean;
 }
 
 export interface StaffUser {
@@ -12,6 +13,7 @@ export interface StaffUser {
   fullName: string;
   email: string;
   department: string;
+  isOnDuty?: boolean;
 }
 
 const SESSION_KEY = 'pulsecheck_staff_session';
@@ -41,14 +43,16 @@ export const getAvailableDoctors = (): DoctorAccount[] => {
       fullName: 'Dr. Sarah Chen, MD',
       email: 'schen@hospital.org',
       department: 'Emergency Medicine',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      isOnDuty: true
     },
     {
       doctorId: 'DOC-2026-002',
       fullName: 'Dr. Rajesh Kumar, MD',
       email: 'rkumar@hospital.org',
       department: 'General Medicine',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      isOnDuty: true
     }
   ];
 };
@@ -66,13 +70,23 @@ export const registerDoctor = (account: Omit<DoctorAccount, 'doctorId' | 'create
   const newDoctor: DoctorAccount = {
     ...account,
     doctorId,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    isOnDuty: true
   };
 
   doctors.push(newDoctor);
   localStorage.setItem(DOCTORS_KEY, JSON.stringify(doctors));
   
   return newDoctor;
+};
+
+export const toggleDoctorDutyStatus = (doctorId: string, isOnDuty: boolean): void => {
+  const doctors = getRegisteredDoctors();
+  const index = doctors.findIndex(d => d.doctorId === doctorId);
+  if (index !== -1) {
+    doctors[index].isOnDuty = isOnDuty;
+    localStorage.setItem(DOCTORS_KEY, JSON.stringify(doctors));
+  }
 };
 
 export const loginDoctor = (identifier: string, pin: string): StaffUser | null => {
@@ -88,7 +102,8 @@ export const loginDoctor = (identifier: string, pin: string): StaffUser | null =
       doctorId: doctor.doctorId,
       fullName: doctor.fullName,
       email: doctor.email,
-      department: doctor.department
+      department: doctor.department,
+      isOnDuty: doctor.isOnDuty !== false // defaults to true if undefined
     };
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
     return user;

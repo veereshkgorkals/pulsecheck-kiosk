@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getPatientQueue, savePatientSummary } from '../utils/storage';
 import { type ClinicalSummary } from '../services/aiSummarizerService';
-import { getAuthenticatedStaff, logoutStaff, type StaffUser } from '../services/authService';
+import { getAuthenticatedStaff, logoutStaff, toggleDoctorDutyStatus, type StaffUser } from '../services/authService';
 import { DoctorAuthModal } from '../components/DoctorAuthModal';
 import { Stethoscope, ClipboardCopy, CheckCircle2, Clock, AlertTriangle, Volume2, ChevronDown, ChevronUp, User, Activity, FileText, LogOut } from 'lucide-react';
 
@@ -177,13 +177,38 @@ AFFECTED ANATOMY: ${affectedAnatomy.join(', ')}`;
               <div className="text-xs text-slate-400">ID: {staffUser.doctorId}</div>
             </div>
             
+            <button
+              onClick={() => {
+                const newStatus = !staffUser.isOnDuty;
+                toggleDoctorDutyStatus(staffUser.doctorId, newStatus);
+                setStaffUser(prev => prev ? { ...prev, isOnDuty: newStatus } : null);
+              }}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                staffUser.isOnDuty 
+                  ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              {staffUser.isOnDuty ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                  🟢 On Duty
+                </>
+              ) : (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-slate-500"></span>
+                  🔴 Off Duty
+                </>
+              )}
+            </button>
+            
             <button 
               onClick={handleLogout}
               className="flex items-center gap-2 bg-slate-800 hover:bg-red-600 hover:text-white text-slate-300 px-3 py-1.5 rounded transition-colors"
               title="Log out"
             >
               <LogOut size={16} />
-              <span className="text-sm font-bold">Logout / Lock Session</span>
+              <span className="text-sm font-bold hidden xl:inline">Logout</span>
             </button>
           </div>
         </div>

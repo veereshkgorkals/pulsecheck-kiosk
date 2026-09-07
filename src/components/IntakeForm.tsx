@@ -396,34 +396,76 @@ export function IntakeForm({ lang, speak, getTtsButtonClass, onComplete }: Intak
                 {(t as any).selectPhysician || 'Select Consulting Physician & Department'} *
               </label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {availableDoctors.map(doc => (
+                {availableDoctors.map(doc => {
+                  const isOnDuty = doc.isOnDuty !== false;
+                  return (
+                    <button
+                      key={doc.doctorId}
+                      disabled={!isOnDuty}
+                      title={!isOnDuty ? "This physician is currently away. Please select another on-duty doctor or General Triage." : ""}
+                      onClick={() => {
+                        updateForm('assignedDoctorId', doc.doctorId);
+                        updateForm('assignedDoctorName', doc.fullName);
+                        updateForm('assignedDepartment', doc.department);
+                      }}
+                      className={`text-left p-4 rounded-xl border-2 transition-all ${
+                        formData.assignedDoctorId === doc.doctorId
+                          ? 'border-[var(--color-medical-blue)] bg-blue-50 shadow-md'
+                          : isOnDuty 
+                            ? 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50'
+                            : 'border-slate-200 bg-slate-100 opacity-60 cursor-not-allowed'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="font-bold text-slate-900 flex items-center gap-2">
+                          {doc.fullName} 
+                          {!isOnDuty && <span className="text-xl">🔒</span>}
+                        </span>
+                        {isOnDuty ? (
+                          <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                            {(t as any).onDuty || 'On Duty'}
+                          </span>
+                        ) : (
+                          <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                            {(t as any).offDuty || 'Off Duty / Unavailable'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm text-slate-500 flex items-center gap-2">
+                        <span className="bg-slate-200 px-2 py-0.5 rounded text-xs font-semibold text-slate-700">
+                          {doc.department}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+                
+                {(!availableDoctors.some(d => d.isOnDuty !== false)) && (
                   <button
-                    key={doc.doctorId}
                     onClick={() => {
-                      updateForm('assignedDoctorId', doc.doctorId);
-                      updateForm('assignedDoctorName', doc.fullName);
-                      updateForm('assignedDepartment', doc.department);
+                      updateForm('assignedDoctorId', 'ON_CALL_POOL');
+                      updateForm('assignedDoctorName', (t as any).onCallPool || '🏥 On-Call Emergency / General Triage Pool');
+                      updateForm('assignedDepartment', 'General Triage');
                     }}
                     className={`text-left p-4 rounded-xl border-2 transition-all ${
-                      formData.assignedDoctorId === doc.doctorId
+                      formData.assignedDoctorId === 'ON_CALL_POOL'
                         ? 'border-[var(--color-medical-blue)] bg-blue-50 shadow-md'
-                        : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50'
+                        : 'border-orange-200 hover:border-orange-300 bg-orange-50'
                     }`}
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <span className="font-bold text-slate-900">{doc.fullName}</span>
-                      <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                        {(t as any).onDuty || 'On Duty'}
+                      <span className="font-bold text-orange-900">{(t as any).onCallPool || '🏥 On-Call Emergency / General Triage Pool'}</span>
+                      <span className="bg-orange-200 text-orange-800 px-2 py-0.5 rounded-full text-xs font-bold">
+                        Fallback
                       </span>
                     </div>
-                    <div className="text-sm text-slate-500 flex items-center gap-2">
-                      <span className="bg-slate-200 px-2 py-0.5 rounded text-xs font-semibold text-slate-700">
-                        {doc.department}
-                      </span>
+                    <div className="text-sm text-orange-700">
+                      All physicians are currently off-duty. Select this option to join the emergency queue.
                     </div>
                   </button>
-                ))}
+                )}
               </div>
             </div>
           </div>

@@ -76,6 +76,8 @@ export const translations = {
     department: 'Department',
     assignedPhysician: 'Assigned Physician',
     onDuty: 'On Duty',
+    offDuty: 'Off Duty / Unavailable',
+    onCallPool: '🏥 On-Call Emergency / General Triage Pool',
   },
   es: {
     emergencyHeader: 'Si experimenta una emergencia que pone en peligro su vida, deténgase y avise al personal de inmediato.',
@@ -136,6 +138,8 @@ export const translations = {
     department: 'Departamento',
     assignedPhysician: 'Médico Asignado',
     onDuty: 'De Guardia',
+    offDuty: 'Fuera de Servicio / No Disponible',
+    onCallPool: '🏥 Equipo de Emergencias / Triage General',
   },
   hi: {
     emergencyHeader: 'यदि आप जीवन-खतरे वाली आपात स्थिति का अनुभव कर रहे हैं, तो रुकें और तुरंत कर्मचारियों को सचेत करें।',
@@ -196,6 +200,8 @@ export const translations = {
     department: 'विभाग',
     assignedPhysician: 'निर्दिष्ट चिकित्सक',
     onDuty: 'ड्यूटी पर',
+    offDuty: 'ड्यूटी पर नहीं / अनुपलब्ध',
+    onCallPool: '🏥 आपातकालीन पूल / सामान्य ट्राइएज',
   },
   zh: {
     emergencyHeader: '如果您正在经历危及生命的紧急情况，请停止并立即联系工作人员。',
@@ -256,6 +262,8 @@ export const translations = {
     department: '部门',
     assignedPhysician: '指定医生',
     onDuty: '值班中',
+    offDuty: '休息 / 不可用',
+    onCallPool: '🏥 紧急呼叫 / 一般分诊池',
   },
   fr: {
     emergencyHeader: 'Si vous rencontrez une urgence potentiellement mortelle, arrêtez-vous et alertez immédiatement le personnel.',
@@ -316,5 +324,7 @@ export const translations = {
     department: 'Département',
     assignedPhysician: 'Médecin Assigné',
     onDuty: 'De Garde',
+    offDuty: 'Hors Service / Indisponible',
+    onCallPool: '🏥 Équipe d\'Urgence / Triage Général',
   }
 };
