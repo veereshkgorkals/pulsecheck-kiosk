@@ -38,6 +38,7 @@ export interface ClinicalSummary extends AIAnalysisResult {
   timestamp: string;
   status: 'waiting' | 'seen';
   isEscalated: boolean;
+  tokenNumber?: string;
   voiceRecording?: {
     originalTranscript: string;
     englishTranslation: string;

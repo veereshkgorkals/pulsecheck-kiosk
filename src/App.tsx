@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, Stethoscope, Settings, Phone, Volume2, CheckCircle } from 'lucide-react';
+import { AlertTriangle, Stethoscope, Settings, Phone, Volume2, CheckCircle, Printer } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { type Language, languageNames, languageCodes, translations } from './i18n';
 import { IntakeForm } from './components/IntakeForm';
+import { getPatientQueue } from './utils/storage';
 import { type ClinicalSummary } from './services/aiSummarizerService';
 import { DoctorDashboard } from './pages/DoctorDashboard';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -210,7 +211,7 @@ function App() {
               <CheckCircle size={64} />
             </motion.div>
             
-            <div className="flex justify-center items-center gap-3 mb-8">
+            <div className="flex justify-center items-center gap-3 mb-6">
               <h3 className="text-2xl font-bold text-slate-800">{t.successMsg}</h3>
               <button 
                 onClick={() => speak(t.successMsg)}
@@ -221,6 +222,35 @@ function App() {
             </div>
 
             {finalSummary && (
+              <>
+                {/* TOKEN TICKET CARD */}
+                {finalSummary.tokenNumber && (
+                  <div className="bg-slate-900 text-white rounded-xl p-6 mb-8 shadow-md border-4 border-slate-800 border-dashed relative overflow-hidden">
+                    <div className="text-slate-400 font-bold tracking-widest text-sm mb-2">{t.queueTokenNumber}</div>
+                    <div className="text-6xl font-black mb-2 text-[var(--color-medical-blue)] bg-white inline-block px-8 py-4 rounded-lg shadow-inner">
+                      {finalSummary.tokenNumber}
+                    </div>
+                    <div className="text-slate-300 text-sm mb-6 max-w-sm mx-auto">
+                      Please take a screenshot or note this number. The physician will call you using this token.
+                    </div>
+                    
+                    <div className="bg-slate-800 rounded-lg p-3 inline-block mb-6">
+                      <span className="font-semibold text-slate-400">{t.estimatedWait}</span>{' '}
+                      <span className="text-lg font-bold text-white">
+                        {Math.max(0, getPatientQueue().filter(p => p.status === 'waiting').length - 1)} {t.patientsAhead}
+                      </span>
+                    </div>
+                    
+                    <div>
+                      <button 
+                        onClick={() => window.print()}
+                        className="bg-white text-slate-900 hover:bg-slate-200 transition-colors px-6 py-2 rounded-full font-bold text-sm inline-flex items-center gap-2"
+                      >
+                        <Printer size={16} /> {t.savePrintToken}
+                      </button>
+                    </div>
+                  </div>
+                )}
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 text-left mb-8 shadow-sm">
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -266,11 +296,15 @@ function App() {
                   </div>
                 </div>
               </div>
+              </>
             )}
             
             <button 
-              onClick={() => { setSpeakingText(null); setFinalSummary(null); setView('triage'); }}
-              className="flex items-center justify-center w-full gap-2 px-6 py-3 rounded-lg font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+              onClick={() => {
+                setSpeakingText(null);
+                setView('triage');
+              }}
+              className="bg-slate-200 text-slate-700 text-lg px-8 py-3 rounded-lg font-bold shadow hover:bg-slate-300 transition-colors"
             >
               {t.backToStart}
             </button>

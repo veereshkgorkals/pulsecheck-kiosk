@@ -16,6 +16,7 @@ export function DoctorDashboard({ onClose }: DoctorDashboardProps) {
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const [callingToken, setCallingToken] = useState<string | null>(null);
 
   const loadPatients = () => {
     const queue = getPatientQueue();
@@ -208,7 +209,10 @@ AFFECTED ANATOMY: ${affectedAnatomy.join(', ')}`;
                     <div className="absolute top-0 right-0 w-0 h-0 border-t-[30px] border-l-[30px] border-t-red-500 border-l-transparent"></div>
                   )}
                   <div className="flex justify-between items-start mb-1">
-                    <span className="font-bold text-slate-800">{p.patientInfo.name}</span>
+                    <span className="font-bold text-slate-800">
+                      {p.tokenNumber && <span className="text-[var(--color-medical-blue)] mr-1">[{p.tokenNumber}]</span>}
+                      {p.patientInfo.name}
+                    </span>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-bold uppercase border ${urgencyColors[p.aiUrgency]}`}>
                       {p.aiUrgency}
                     </span>
@@ -233,16 +237,28 @@ AFFECTED ANATOMY: ${affectedAnatomy.join(', ')}`;
             <div className="max-w-4xl mx-auto space-y-6">
               
               {/* PATIENT HEADER */}
-              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex justify-between items-start">
-                <div>
-                  <h2 className="text-3xl font-bold text-slate-900 mb-2 flex items-center gap-3">
-                    {selectedPatient.patientInfo.name}
-                    {selectedPatient.isEscalated && (
-                      <span className="text-xs bg-red-600 text-white px-2 py-1 rounded-md uppercase font-bold tracking-wider flex items-center gap-1 animate-pulse">
-                        <AlertTriangle size={14} /> Escalated
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex justify-between items-start relative overflow-hidden">
+                {callingToken === selectedPatient.tokenNumber && (
+                  <div className="absolute top-0 left-0 w-full bg-green-500 text-white text-center text-sm font-bold py-1 animate-pulse">
+                    NOW SERVING TOKEN {selectedPatient.tokenNumber}
+                  </div>
+                )}
+                <div className={callingToken === selectedPatient.tokenNumber ? 'mt-4' : ''}>
+                  <div className="flex items-center gap-3 mb-2">
+                    {selectedPatient.tokenNumber && (
+                      <span className="bg-slate-900 text-white px-3 py-1 rounded text-lg font-black tracking-widest shadow-inner">
+                        {selectedPatient.tokenNumber}
                       </span>
                     )}
-                  </h2>
+                    <h2 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+                      {selectedPatient.patientInfo.name}
+                      {selectedPatient.isEscalated && (
+                        <span className="text-xs bg-red-600 text-white px-2 py-1 rounded-md uppercase font-bold tracking-wider flex items-center gap-1 animate-pulse">
+                          <AlertTriangle size={14} /> Escalated
+                        </span>
+                      )}
+                    </h2>
+                  </div>
                   <div className="flex gap-4 text-sm text-slate-500 font-medium">
                     <span>Phone: {selectedPatient.patientInfo.phone}</span>
                     <span>Lang: {(selectedPatient.reportedLanguage || 'en').toUpperCase()}</span>
@@ -259,6 +275,18 @@ AFFECTED ANATOMY: ${affectedAnatomy.join(', ')}`;
 
               {/* ACTION CONTROLS */}
               <div className="flex gap-3 flex-wrap">
+                {selectedPatient.tokenNumber && (
+                  <button
+                    onClick={() => {
+                      setCallingToken(selectedPatient.tokenNumber!);
+                      setTimeout(() => setCallingToken(null), 5000); // Stop flashing after 5s
+                    }}
+                    className="min-w-[150px] px-6 py-3 rounded-lg font-bold bg-green-100 text-green-800 hover:bg-green-200 border border-green-200 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Volume2 size={20} />
+                    Call Token
+                  </button>
+                )}
                 <button
                   onClick={copyToEHR}
                   className={`flex-1 min-w-[200px] py-3 px-4 rounded-lg font-bold flex items-center justify-center gap-2 transition-colors ${

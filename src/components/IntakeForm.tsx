@@ -5,6 +5,7 @@ import { VoiceRecorder } from './VoiceRecorder';
 import { type TranscriptionResult } from '../services/transcriptionService';
 import { generateFinalSummary, analyzeNarrative, type ClinicalSummary, type AIAnalysisResult } from '../services/aiSummarizerService';
 import { savePatientSummary } from '../utils/storage';
+import { getNextTokenNumber } from '../utils/tokenManager';
 import { Loader2 } from 'lucide-react';
 
 interface IntakeFormProps {
@@ -113,6 +114,7 @@ export function IntakeForm({ lang, speak, getTtsButtonClass, onComplete }: Intak
       }
       
       const summary = generateFinalSummary({ ...formData, language: lang } as any, formData.aiAnalysis);
+      summary.tokenNumber = getNextTokenNumber();
       savePatientSummary(summary);
       onComplete(summary);
     } catch (err) {
