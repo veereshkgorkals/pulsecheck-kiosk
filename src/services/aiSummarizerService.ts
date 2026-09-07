@@ -21,6 +21,8 @@ export interface PatientIntakeData {
 }
 
 export interface AIAnalysisResult {
+  isValidClinicalInput: boolean;
+  rejectionReason: string | null;
   analyzedChiefComplaint: string;
   timeline: string;
   aiAssignedPainSeverity: number;
@@ -62,8 +64,17 @@ export const analyzeNarrative = async (
   if (apiKey) {
     try {
       const systemPrompt = `You are an expert emergency triage medical scribe.
-Analyze the raw patient narrative and extract strict JSON matching the schema.
+Evaluate if the patient's narrative describes an actual physical, mental, or medical symptom/concern.
+If the text consists of gibberish, random keystrokes, profanity, or non-medical nonsense (e.g., 'asdasdx', 'testing 123', 'hello world'), return:
+{
+  "isValidClinicalInput": false,
+  "rejectionReason": "Your description does not appear to describe a medical issue or symptom. Please explain what is bothering you."
+}
+
+Otherwise, extract strict JSON matching the schema:
 RULES:
+- isValidClinicalInput: true
+- rejectionReason: null
 - analyzedChiefComplaint: 1 concise clinical line (under 12 words).
 - timeline: Extract duration and onset info.
 - aiAssignedPainSeverity: Estimate 1-10 pain/distress score (e.g. cold=2-3, back radiculopathy=8).
@@ -99,10 +110,29 @@ RULES:
       // Anatomy extraction
       if (rawText.match(/head|brain|migraine|skull/)) anatomy.push('Head');
       if (rawText.match(/chest|heart|lungs|ribs/)) anatomy.push('Chest');
-      if (rawText.match(/stomach|belly|abdomen|gut/)) anatomy.push('Abdomen');
+      if (rawText.match(/stomach|belly|abdomen|gut|nausea|vomit/)) anatomy.push('Abdomen');
       if (rawText.match(/back|spine|lumbar/)) anatomy.push('Back');
-      if (rawText.match(/leg|arm|foot|hand|thigh|limbs/)) anatomy.push('Limbs');
-      if (rawText.match(/throat|neck|nose/)) anatomy.push('ENT');
+      if (rawText.match(/leg|arm|foot|hand|thigh|limbs|muscle|bone/)) anatomy.push('Limbs');
+      if (rawText.match(/throat|neck|nose|ear|eye|mouth/)) anatomy.push('ENT');
+
+      // Basic heuristic validation for offline fallback
+      const healthKeywords = ['pain', 'hurt', 'ache', 'fever', 'cold', 'cough', 'sick', 'bleeding', 'cut', 'fall', 'dizzy', 'weak', 'tired', 'help', 'swollen', 'rash', 'burn', 'cant', 'cannot', 'feel', 'feeling', 'doctor'];
+      const hasHealthWord = healthKeywords.some(kw => rawText.includes(kw));
+      
+      // If we found zero anatomy matches and zero basic health words, assume gibberish
+      if (anatomy.length === 0 && !hasHealthWord) {
+        return resolve({
+          isValidClinicalInput: false,
+          rejectionReason: "Your description does not appear to describe a medical issue or symptom. Please explain what is bothering you.",
+          analyzedChiefComplaint: "",
+          timeline: "",
+          aiAssignedPainSeverity: 0,
+          aiUrgency: 'low',
+          clinicalBulletPoints: [],
+          affectedAnatomy: [],
+          detectedOnsetCategory: null
+        });
+      }
 
       // Bullets extraction
       if (rawText.includes('numb') || rawText.includes('tingling')) bullets.push('Paresthesia / numbness detected');
@@ -153,11 +183,13 @@ RULES:
       if (bullets.some(b => b.includes('motor'))) chiefComp += ' with neurological deficit';
 
       resolve({
+        isValidClinicalInput: true,
+        rejectionReason: null,
         analyzedChiefComplaint: chiefComp.charAt(0).toUpperCase() + chiefComp.slice(1),
         timeline,
         aiAssignedPainSeverity: severity,
         aiUrgency: urgency,
-        clinicalBulletPoints: bullets.length > 0 ? bullets : ['Patient reported discomfort'],
+        clinicalBulletPoints: bullets.length > 0 ? bullets : ['Patient reported symptoms', 'Further evaluation needed'],
         affectedAnatomy: anatomy.length > 0 ? anatomy : ['Unspecified'],
         detectedOnsetCategory
       });

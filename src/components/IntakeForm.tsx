@@ -75,9 +75,28 @@ export function IntakeForm({ lang, speak, getTtsButtonClass, onComplete }: Intak
       }
     }
     if (step === 1) {
-      if (!formData.chiefComplaint) {
+      const text = formData.chiefComplaint.trim();
+      if (!text) {
         setError((t as any).requiredErr || 'Please fill in all required fields.');
+        document.getElementById('chiefComplaintInput')?.focus();
         return;
+      }
+      
+      // Length Guard
+      if (text.replace(/\s/g, '').length < 8) {
+        setError("Please describe your symptoms in at least a few words.");
+        document.getElementById('chiefComplaintInput')?.focus();
+        return;
+      }
+      
+      // Gibberish / Repetition Regex
+      const hasRepeatedChars = /(.)\1{4,}/.test(text); // e.g. aaaaa
+      const onlyConsonants = text.replace(/[^a-zA-Z]/g, '').match(/^[^aeiouyAEIOUY]{6,}$/); // 6+ consonants without vowels
+
+      if (hasRepeatedChars || onlyConsonants) {
+         setError("Please enter a valid description of what you are experiencing.");
+         document.getElementById('chiefComplaintInput')?.focus();
+         return;
       }
       
       setIsSubmitting(true);
@@ -85,6 +104,13 @@ export function IntakeForm({ lang, speak, getTtsButtonClass, onComplete }: Intak
       try {
         const analysis = await analyzeNarrative(formData.chiefComplaint, formData.voiceRecording?.englishTranslation || '', lang);
         
+        if (analysis.isValidClinicalInput === false) {
+           setError(analysis.rejectionReason || "⚠️ We could not detect any symptoms from your description. Please explain your issue in plain words (e.g., 'I have a headache', 'My throat hurts').");
+           setIsSubmitting(false);
+           document.getElementById('chiefComplaintInput')?.focus();
+           return;
+        }
+
         updateForm('aiAnalysis', analysis);
         updateForm('painSeverity', analysis.aiAssignedPainSeverity);
         
@@ -163,11 +189,6 @@ export function IntakeForm({ lang, speak, getTtsButtonClass, onComplete }: Intak
       </div>
 
       <div className="p-8">
-        {error && (
-          <div className="mb-6 p-3 bg-red-100 text-red-700 rounded-md text-sm">
-            {error}
-          </div>
-        )}
 
         {/* STEP A */}
         {step === 0 && (
@@ -239,10 +260,13 @@ export function IntakeForm({ lang, speak, getTtsButtonClass, onComplete }: Intak
             <div className="mb-6">
               <label className="block text-lg font-medium text-slate-700 mb-2">{t.chiefComplaintPrompt} *</label>
               <textarea 
+                id="chiefComplaintInput"
                 value={formData.chiefComplaint}
                 onChange={e => updateForm('chiefComplaint', e.target.value)}
                 rows={3}
-                className="w-full border border-slate-300 rounded-md px-4 py-3 focus:ring-2 focus:ring-[var(--color-medical-blue)] outline-none resize-none mb-3"
+                className={`w-full border rounded-md px-4 py-3 focus:ring-2 focus:ring-[var(--color-medical-blue)] outline-none resize-none mb-3 ${
+                  error ? 'border-red-500 bg-red-50' : 'border-slate-300'
+                }`}
               />
               <VoiceRecorder lang={lang} onTranscribe={handleTranscription} />
               
@@ -546,8 +570,14 @@ export function IntakeForm({ lang, speak, getTtsButtonClass, onComplete }: Intak
           </div>
         )}
 
+        {error && (
+          <div className="mt-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-800 rounded-md text-sm font-medium animate-in fade-in slide-in-from-bottom-2">
+            {error}
+          </div>
+        )}
+
         {/* Navigation */}
-        <div className="mt-8 flex justify-between items-center pt-6 border-t border-slate-200">
+        <div className="mt-6 flex justify-between items-center pt-6 border-t border-slate-200">
           <button 
             onClick={prevStep}
             disabled={step === 0}

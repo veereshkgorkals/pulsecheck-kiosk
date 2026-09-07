@@ -77,6 +77,8 @@ function App() {
       ],
       affectedAnatomy: ["General/Systemic"],
       timeline: "Immediate/Acute",
+      isValidClinicalInput: true,
+      rejectionReason: null,
       detectedOnsetCategory: 'Today',
       assignedDoctorId: "ALL",
       status: "waiting",
