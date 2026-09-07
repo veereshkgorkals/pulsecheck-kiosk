@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getPatientQueue, savePatientSummary } from '../utils/storage';
+import { getPatientQueue, savePatientSummary, getEmergencyAlerts, updateEmergencyAlertStatus, type EmergencyAlert } from '../utils/storage';
 import { type ClinicalSummary } from '../services/aiSummarizerService';
 import { getAuthenticatedStaff, logoutStaff, toggleDoctorDutyStatus, type StaffUser } from '../services/authService';
 import { DoctorAuthModal } from '../components/DoctorAuthModal';
@@ -41,17 +41,49 @@ export function DoctorDashboard({ onClose }: DoctorDashboardProps) {
       if (e.key === 'pulsecheck_patients_queue') {
         loadPatients();
       }
+      if (e.key === 'pulsecheck_emergency_alerts') {
+        loadAlerts();
+      }
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
+
+  const [alerts, setAlerts] = useState<EmergencyAlert[]>([]);
+
+  const loadAlerts = () => {
+    setAlerts(getEmergencyAlerts());
+  };
+
+  useEffect(() => {
+    loadAlerts();
+    // Also set up a short interval as a fallback since same-window storage events don't fire
+    const interval = setInterval(loadAlerts, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const activeAlerts = useMemo(() => alerts.filter(a => a.status === 'active'), [alerts]);
+
+  useEffect(() => {
+    if (activeAlerts.length > 0) {
+      try {
+        const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+        audio.play().catch(() => {});
+      } catch (e) {}
+    }
+  }, [activeAlerts.length]);
+
+  const acknowledgeAlert = (id: string) => {
+    updateEmergencyAlertStatus(id, 'acknowledged');
+    loadAlerts();
+  };
 
   const [showAll, setShowAll] = useState(false);
 
   const filteredPatients = useMemo(() => {
     return patients.filter(p => {
       // Doctor Isolation Filtering
-      if (!showAll && staffUser && p.assignedDoctorId !== staffUser.doctorId) {
+      if (!showAll && staffUser && p.assignedDoctorId !== staffUser.doctorId && p.assignedDoctorId !== 'ALL') {
         return false;
       }
       
@@ -214,6 +246,21 @@ AFFECTED ANATOMY: ${affectedAnatomy.join(', ')}`;
         </div>
       </header>
 
+      {activeAlerts.length > 0 && (
+        <div className="bg-red-600 text-white p-3 flex justify-between items-center px-6 animate-pulse shadow-md z-50 shrink-0">
+          <div className="flex items-center gap-3 font-bold text-lg">
+            <AlertTriangle size={24} />
+            🚨 CODE RED: Patient triggered SOS assistance from waiting area QR intake!
+          </div>
+          <button 
+            onClick={() => activeAlerts.forEach(a => acknowledgeAlert(a.id))}
+            className="bg-white text-red-600 px-4 py-1.5 rounded font-bold hover:bg-red-50 transition-colors shadow-sm"
+          >
+            Acknowledge & Clear Alert
+          </button>
+        </div>
+      )}
+
       {/* MAIN LAYOUT */}
       <div className="flex flex-1 overflow-hidden">
         
@@ -240,38 +287,47 @@ AFFECTED ANATOMY: ${affectedAnatomy.join(', ')}`;
             {filteredPatients.length === 0 ? (
               <div className="p-8 text-center text-slate-400 text-sm">No patients found.</div>
             ) : (
-              filteredPatients.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedPatientId(p.id)}
-                  className={`w-full text-left p-4 transition-colors relative border-l-4 ${
-                    selectedPatientId === p.id 
-                      ? 'bg-blue-50 border-blue-500' 
-                      : 'bg-white border-transparent hover:bg-slate-50'
-                  } ${p.status === 'seen' ? 'opacity-60' : ''}`}
-                >
-                  {p.isEscalated && (
-                    <div className="absolute top-0 right-0 w-0 h-0 border-t-[30px] border-l-[30px] border-t-red-500 border-l-transparent"></div>
-                  )}
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="font-bold text-slate-800">
-                      {p.tokenNumber && <span className="text-[var(--color-medical-blue)] mr-1">[{p.tokenNumber}]</span>}
-                      {p.patientInfo.name}
-                    </span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-bold uppercase border ${urgencyColors[p.aiUrgency]}`}>
-                      {p.aiUrgency}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
-                    <User size={12} /> {p.patientInfo.dob}
-                    <span className="text-slate-300">•</span>
-                    <Clock size={12} /> {timeAgo(p.timestamp)}
-                  </div>
-                  <p className="text-sm text-slate-600 line-clamp-1 font-medium bg-slate-100 px-2 py-1 rounded inline-block w-full overflow-hidden text-ellipsis whitespace-nowrap">
-                    {p.analyzedChiefComplaint}
-                  </p>
-                </button>
-              ))
+              filteredPatients.map(p => {
+                const isSos = p.tokenNumber === 'EMERGENCY-SOS';
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedPatientId(p.id)}
+                    className={`w-full text-left p-4 transition-colors relative border-l-4 ${
+                      selectedPatientId === p.id 
+                        ? (isSos ? 'bg-red-100 border-red-600' : 'bg-blue-50 border-blue-500')
+                        : (isSos ? 'bg-red-50 border-red-500 hover:bg-red-100' : 'bg-white border-transparent hover:bg-slate-50')
+                    } ${p.status === 'seen' ? 'opacity-60' : ''}`}
+                  >
+                    {(p.isEscalated || isSos) && (
+                      <div className="absolute top-0 right-0 w-0 h-0 border-t-[30px] border-l-[30px] border-t-red-500 border-l-transparent"></div>
+                    )}
+                    <div className="flex justify-between items-start mb-1">
+                      <span className={`font-bold ${isSos ? 'text-red-700' : 'text-slate-800'}`}>
+                        {p.tokenNumber && <span className={`${isSos ? 'text-red-700' : 'text-[var(--color-medical-blue)]'} mr-1`}>[{p.tokenNumber}]</span>}
+                        {p.patientInfo.name}
+                      </span>
+                      {isSos ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-bold uppercase border bg-red-600 text-white border-red-700 animate-pulse">
+                          CRITICAL
+                        </span>
+                      ) : (
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-bold uppercase border ${urgencyColors[p.aiUrgency]}`}>
+                          {p.aiUrgency}
+                        </span>
+                      )}
+                    </div>
+                    <div className={`flex items-center gap-2 text-xs mb-2 ${isSos ? 'text-red-600' : 'text-slate-500'}`}>
+                      <User size={12} /> {p.patientInfo.dob}
+                      <span className={isSos ? 'text-red-300' : 'text-slate-300'}>•</span>
+                      <Clock size={12} /> {timeAgo(p.timestamp)}
+                    </div>
+                    <p className={`text-sm line-clamp-1 font-medium px-2 py-1 rounded inline-block w-full overflow-hidden text-ellipsis whitespace-nowrap ${isSos ? 'text-red-800 bg-red-100' : 'text-slate-600 bg-slate-100'}`}>
+                      {p.analyzedChiefComplaint}
+                    </p>
+                  </button>
+                );
+              })
             )}
           </div>
         </div>

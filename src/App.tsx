@@ -3,7 +3,7 @@ import { AlertTriangle, Stethoscope, Settings, Phone, Volume2, CheckCircle, Prin
 import { motion } from 'framer-motion';
 import { type Language, languageNames, languageCodes, translations } from './i18n';
 import { IntakeForm } from './components/IntakeForm';
-import { getPatientQueue } from './utils/storage';
+import { getPatientQueue, savePatientSummary, saveEmergencyAlert, getEmergencyAlerts, updateEmergencyAlertStatus } from './utils/storage';
 import { type ClinicalSummary } from './services/aiSummarizerService';
 import { DoctorDashboard } from './pages/DoctorDashboard';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -45,6 +45,45 @@ function App() {
         ? 'bg-[var(--color-medical-blue)] text-white animate-pulse' 
         : 'text-[var(--color-medical-slate)] hover:bg-slate-200 bg-slate-100'
     }`;
+
+  const handleEmergencyTrigger = () => {
+    setSpeakingText(null);
+    setView('alert');
+
+    const alertId = "EMERGENCY-" + Date.now();
+    saveEmergencyAlert({
+      id: alertId,
+      timestamp: new Date().toISOString(),
+      source: "Patient Mobile QR",
+      status: "active"
+    });
+
+    savePatientSummary({
+      id: "EMERG-" + Date.now(),
+      tokenNumber: "EMERGENCY-SOS",
+      patientInfo: {
+        name: "EMERGENCY PATIENT (Unregistered / SOS)",
+        dob: "Unknown",
+        phone: "Unknown"
+      },
+      analyzedChiefComplaint: "CRITICAL: Patient triggered emergency SOS at triage screen",
+      aiUrgency: "high",
+      aiAssignedPainSeverity: 10,
+      timestamp: new Date().toISOString(),
+      clinicalBulletPoints: [
+        "Immediate assistance requested via Mobile QR intake",
+        "Bypassed standard questionnaire due to red-flag warning",
+        "Requires immediate bedside/waiting room clinical assessment"
+      ],
+      affectedAnatomy: ["General/Systemic"],
+      timeline: "Immediate/Acute",
+      detectedOnsetCategory: 'Today',
+      assignedDoctorId: "ALL",
+      status: "waiting",
+      isEscalated: true,
+      reportedLanguage: lang,
+    });
+  };
 
   if (view === 'doctor') {
     return (
@@ -131,7 +170,7 @@ function App() {
 
               <div className="flex flex-col sm:flex-row gap-4 w-full">
                 <button 
-                  onClick={() => { setSpeakingText(null); setView('alert'); }}
+                  onClick={handleEmergencyTrigger}
                   className="flex-1 bg-[var(--color-alert-red)] text-white text-lg px-6 py-4 rounded-lg font-bold shadow-md hover:bg-red-600 transition-colors flex justify-center items-center gap-2">
                   <Phone size={24} />
                   {t.btnEmergency}
@@ -156,34 +195,34 @@ function App() {
               <AlertTriangle size={120} />
             </motion.div>
             
-            <div className="flex items-center gap-3 mb-4">
-              <h1 className="text-4xl font-bold">{t.pleaseWait}</h1>
-              <button 
-                onClick={() => speak(t.pleaseWait + '. ' + t.staffAlerted)}
-                className={speakingText === t.pleaseWait + '. ' + t.staffAlerted ? 'text-white animate-pulse' : 'text-red-200 hover:text-white'}
-              >
-                <Volume2 size={28} />
-              </button>
+            <h1 className="text-4xl font-black mb-4 uppercase">🚨 Alert Dispatched to Triage Desk</h1>
+            
+            <div className="bg-white/10 p-6 rounded-lg mb-8 border border-white/20 w-full">
+              <p className="text-2xl font-bold mb-4">Please proceed immediately to the ER Front Counter or alert the nearest medical staff.</p>
+              <p className="text-lg opacity-90">Staff has been notified of an active emergency alert.</p>
             </div>
             
-            <p className="text-xl mb-8 font-medium">{t.staffAlerted}</p>
-            
-            <button 
-              className="flex items-center gap-2 bg-white text-[var(--color-alert-red)] px-6 py-3 rounded-full font-bold hover:bg-gray-100 transition-colors"
-              onClick={() => {
-                const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-                audio.play().catch(e => console.log('Audio play failed', e));
-              }}
-            >
-              <Volume2 size={24} />
-              {t.playAudio}
-            </button>
-            <button 
-              onClick={() => { setSpeakingText(null); setView('triage'); }}
-              className="mt-8 text-red-200 underline hover:text-white"
-            >
-              {t.cancel}
-            </button>
+            <div className="flex flex-col gap-4 w-full max-w-sm">
+              <a 
+                href="tel:112"
+                className="flex items-center justify-center gap-2 bg-white text-[var(--color-alert-red)] px-6 py-4 rounded-full font-black text-xl hover:bg-gray-100 transition-colors shadow-lg"
+              >
+                <Phone size={24} />
+                Call ER Desk / Emergency Hotline
+              </a>
+              <button 
+                onClick={() => { 
+                  setSpeakingText(null); 
+                  setView('triage'); 
+                  // Cancel the active alert
+                  const alerts = getEmergencyAlerts();
+                  alerts.filter((a: any) => a.status === 'active').forEach((a: any) => updateEmergencyAlertStatus(a.id, 'cancelled'));
+                }}
+                className="mt-4 text-white/80 hover:text-white underline font-semibold flex justify-center items-center gap-2"
+              >
+                Cancel / False Alarm
+              </button>
+            </div>
           </div>
         )}
 
