@@ -529,17 +529,22 @@ export function IntakeForm({ lang, speak, getTtsButtonClass, onComplete }: Intak
               </div>
 
               <div className="border-b border-slate-200 pb-4">
-                <span className="block text-xs text-slate-500 uppercase">{t.stepBHeader}</span>
-                <p className="font-medium text-slate-800">{formData.chiefComplaint}</p>
+                <span className="block text-xs text-slate-500 uppercase">AI Analyzed Chief Complaint</span>
+                <p className="font-medium text-slate-800 text-lg">{formData.aiAnalysis?.analyzedChiefComplaint || formData.chiefComplaint}</p>
                 {formData.voiceRecording && (
                   <div className="mt-3">
                     <span className="block text-xs text-slate-500 uppercase mb-1">{(t as any).originalAudio || 'Original Audio'}</span>
                     <audio src={formData.voiceRecording.audioBlobUrl} controls className="w-full max-w-sm h-8" />
                   </div>
                 )}
-                {formData.bodyParts.length > 0 && (
-                  <div className="mt-2 text-sm text-slate-600">
-                    Areas: {formData.bodyParts.join(', ')}
+                {formData.aiAnalysis?.clinicalBulletPoints && formData.aiAnalysis.clinicalBulletPoints.length > 0 && (
+                  <div className="mt-3">
+                    <span className="block text-xs text-slate-500 uppercase mb-1">Clinical Findings</span>
+                    <ul className="list-disc pl-5 text-sm text-slate-700 space-y-1">
+                      {formData.aiAnalysis.clinicalBulletPoints.map((b, i) => (
+                        <li key={i}>{b}</li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </div>

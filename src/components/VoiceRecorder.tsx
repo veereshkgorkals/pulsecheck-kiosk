@@ -36,7 +36,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ lang, onTranscribe
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = true;
+        recognitionRef.current.continuous = false;
         recognitionRef.current.interimResults = true;
         recognitionRef.current.lang = languageCodes[lang] || 'en-US';
         
@@ -52,7 +52,23 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ lang, onTranscribe
           }
           setLiveTranscript(finalTranscript + interim);
         };
-        recognitionRef.current.start();
+
+        recognitionRef.current.onerror = (event: any) => {
+          if (event.error === 'no-speech' && (finalTranscript.length > 0 || liveTranscript.length > 0)) {
+            // Suppress error if we already got some speech
+            return;
+          }
+          console.warn('Speech recognition error:', event.error);
+        };
+
+        // Delay to let hardware warm up and prevent contention
+        setTimeout(() => {
+          try {
+            if (mediaRecorder.state === 'recording') {
+              recognitionRef.current.start();
+            }
+          } catch (e) { console.warn('Recognition start failed', e); }
+        }, 150);
       }
 
       mediaRecorder.ondataavailable = (e) => {
@@ -112,10 +128,8 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ lang, onTranscribe
       console.error('Transcription error', err);
       if (err.message === 'NO_SPEECH') {
         setErrorMsg('No speech detected. Please try recording again and speak clearly.');
-        resetRecording();
       } else {
         setErrorMsg('An error occurred during transcription.');
-        resetRecording();
       }
     } finally {
       setIsTranscribing(false);
