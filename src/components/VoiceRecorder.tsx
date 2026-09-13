@@ -27,7 +27,22 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ lang, onTranscribe
     try {
       setErrorMsg('');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      
+      const getSupportedMimeType = () => {
+        const types = [
+          'audio/webm;codecs=opus',
+          'audio/webm',
+          'audio/mp4',
+          'audio/aac',
+          'audio/ogg'
+        ];
+        return types.find(type => MediaRecorder.isTypeSupported(type)) || '';
+      };
+      
+      const mimeType = getSupportedMimeType();
+      const options = mimeType ? { mimeType } : undefined;
+      const mediaRecorder = new MediaRecorder(stream, options);
+      
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
       setLiveTranscript('');
@@ -76,7 +91,8 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ lang, onTranscribe
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const typeToUse = mimeType || 'audio/webm';
+        const blob = new Blob(chunksRef.current, { type: typeToUse });
         setAudioBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach((track) => track.stop());

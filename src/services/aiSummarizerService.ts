@@ -120,7 +120,7 @@ RULES:
       const hasHealthWord = healthKeywords.some(kw => rawText.includes(kw));
       
       // If we found zero anatomy matches and zero basic health words, assume gibberish
-      if (anatomy.length === 0 && !hasHealthWord) {
+      if (anatomy.length === 0 && !hasHealthWord && !rawText.includes('audio recording attached')) {
         return resolve({
           isValidClinicalInput: false,
           rejectionReason: "Your description does not appear to describe a medical issue or symptom. Please explain what is bothering you.",
@@ -181,15 +181,18 @@ RULES:
       let chiefComp = anatomy.length > 0 ? `${anatomy[0]} issue` : 'Generalized symptoms';
       if (rawText.includes('cold')) chiefComp = 'Upper respiratory symptoms';
       if (bullets.some(b => b.includes('motor'))) chiefComp += ' with neurological deficit';
+      if (rawText.includes('audio recording attached')) {
+        chiefComp = '[Audio Recording Attached - Direct Physician Review Required]';
+      }
 
       resolve({
         isValidClinicalInput: true,
         rejectionReason: null,
-        analyzedChiefComplaint: chiefComp.charAt(0).toUpperCase() + chiefComp.slice(1),
+        analyzedChiefComplaint: chiefComp,
         timeline,
         aiAssignedPainSeverity: severity,
         aiUrgency: urgency,
-        clinicalBulletPoints: bullets.length > 0 ? bullets : ['Patient reported symptoms', 'Further evaluation needed'],
+        clinicalBulletPoints: bullets.length > 0 ? bullets : (rawText.includes('audio recording attached') ? ['Audio provided for physician review'] : ['Patient reported symptoms', 'Further evaluation needed']),
         affectedAnatomy: anatomy.length > 0 ? anatomy : ['Unspecified'],
         detectedOnsetCategory
       });
