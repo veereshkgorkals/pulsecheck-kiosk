@@ -101,15 +101,14 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ lang, onTranscribe
       mediaRecorder.start();
       setIsRecording(true);
       setTimer(0);
+      const startTime = Date.now();
 
       timerIntervalRef.current = window.setInterval(() => {
-        setTimer((prev) => {
-          if (prev >= 59) {
-            stopRecording();
-            return 60;
-          }
-          return prev + 1;
-        });
+        const exactDurationSeconds = Math.round((Date.now() - startTime) / 1000);
+        setTimer(exactDurationSeconds);
+        if (exactDurationSeconds >= 60) {
+          stopRecording();
+        }
       }, 1000);
     } catch (err) {
       console.error('Error accessing microphone', err);
@@ -180,15 +179,6 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ lang, onTranscribe
     return `${m}:${s}`;
   };
 
-  if (isTranscribing) {
-    return (
-      <div className="flex flex-col items-center justify-center p-6 border border-slate-200 rounded-lg bg-slate-50 gap-3">
-        <Loader2 className="animate-spin text-[var(--color-medical-blue)]" size={32} />
-        <span className="text-slate-600 font-medium">{(t as any).transcribeSave || 'Transcribing...'}</span>
-      </div>
-    );
-  }
-
   if (audioUrl) {
     return (
       <div className="p-4 border border-slate-200 rounded-lg bg-white shadow-sm flex flex-col gap-4">
@@ -200,17 +190,32 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ lang, onTranscribe
         <div className="flex gap-2 justify-end">
           <button 
             onClick={resetRecording}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded"
+            disabled={isTranscribing}
+            className={`flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded ${
+              isTranscribing ? 'text-slate-400 bg-slate-100 cursor-not-allowed' : 'text-slate-600 bg-slate-100 hover:bg-slate-200'
+            }`}
           >
             <RotateCcw size={16} />
             {(t as any).reRecord || 'Re-record'}
           </button>
           <button 
             onClick={handleTranscribe}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-white bg-[var(--color-medical-blue)] hover:bg-blue-600 rounded"
+            disabled={isTranscribing}
+            className={`flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-white rounded ${
+              isTranscribing ? 'bg-blue-400 cursor-not-allowed' : 'bg-[var(--color-medical-blue)] hover:bg-blue-600'
+            }`}
           >
-            <Check size={16} />
-            {(t as any).transcribeSave || 'Transcribe & Save'}
+            {isTranscribing ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                ⏳ Processing speech...
+              </>
+            ) : (
+              <>
+                <Check size={16} />
+                {(t as any).transcribeSave || 'Transcribe & Save'}
+              </>
+            )}
           </button>
         </div>
       </div>

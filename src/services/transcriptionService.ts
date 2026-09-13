@@ -34,7 +34,7 @@ export const transcribeAudioBlob = async (audioBlob: Blob, lang?: Language, live
             { text: `Transcribe the patient's spoken words verbatim in the language spoken (Language: ${lang || 'Unknown'}), followed by an accurate English translation. Format as JSON: {"originalTranscript": "...", "englishTranslation": "..."}` },
             {
               inlineData: {
-                mimeType: audioBlob.type || "audio/mp4",
+                mimeType: audioBlob.type.split(';')[0] || "audio/webm",
                 data: base64Audio
               }
             }
@@ -65,7 +65,8 @@ export const transcribeAudioBlob = async (audioBlob: Blob, lang?: Language, live
           console.warn("Failed to parse Gemini JSON response", parseError);
         }
       } else {
-        console.warn("Gemini API returned error status:", res.status);
+        const errText = await res.text();
+        console.error("Gemini Audio API Error:", errText);
       }
     } catch (e) {
       console.error("Gemini API fallback failed", e);
