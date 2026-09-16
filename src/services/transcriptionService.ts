@@ -11,44 +11,81 @@ export const transcribeAudioBlob = async (audioBlob: Blob, lang?: Language, live
   const audioBlobUrl = URL.createObjectURL(audioBlob);
   const finalNative = (liveTranscript && liveTranscript.trim().length > 0) ? liveTranscript.trim() : '';
 
-  // Step A: If live transcript exists, use it.
+  // Step A: If browser SpeechRecognition produced a live transcript, use it directly.
   if (finalNative) {
+    console.log('[PulseCheck] Using browser SpeechRecognition transcript:', finalNative);
     return {
       originalTranscript: finalNative,
-      englishTranslation: finalNative, // In a real app we'd translate this, but keeping it simple
+      englishTranslation: finalNative,
       audioBlobUrl
     };
   }
 
-  // Step B: Mobile Fallback via Gemini API
+  // Step B: No live transcript (common on mobile). Use Gemini API to transcribe audio.
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
-  if (apiKey) {
-    try {
-      console.log("Audio Blob Type:", audioBlob.type, "Size:", audioBlob.size);
-      console.log("Gemini API Key exists:", !!import.meta.env.VITE_GEMINI_API_KEY);
+  console.log('[PulseCheck] No live transcript available. Attempting Gemini API fallback.');
+  console.log('[PulseCheck] API Key present:', !!apiKey, '| Blob type:', audioBlob.type, '| Blob size:', audioBlob.size);
 
-      let base64Audio = '';
-      try {
-        const { blobToBase64 } = await import('../utils/audioUtils');
-        base64Audio = await blobToBase64(audioBlob);
-      } catch (e) {
-        // inline fallback if utils import fails
-        base64Audio = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-          reader.onerror = reject;
-          reader.readAsDataURL(audioBlob);
-        });
-      }
+  if (!apiKey) {
+    console.error('[PulseCheck] VITE_GEMINI_API_KEY is not set in the build environment!');
+    throw new Error('API_KEY_MISSING');
+  }
+
+  // Convert audio blob to base64
+  let base64Audio = '';
+  try {
+    base64Audio = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        const base64 = result.split(',')[1];
+        if (!base64 || base64.length < 100) {
+          reject(new Error('Base64 conversion produced empty or too-small output'));
+          return;
+        }
+        resolve(base64);
+      };
+      reader.onerror = () => reject(new Error('FileReader failed to read audio blob'));
+      reader.readAsDataURL(audioBlob);
+    });
+  } catch (e) {
+    console.error('[PulseCheck] Base64 conversion failed:', e);
+    throw new Error('AUDIO_CONVERSION_FAILED');
+  }
+
+  console.log('[PulseCheck] Base64 audio length:', base64Audio.length);
+
+  const audioMime = audioBlob.type.split(';')[0] || 'audio/webm';
+
+  const prompt = `You are a medical transcription assistant. Transcribe the patient's spoken words in this audio recording verbatim. Language context: ${lang || 'en'}.
+
+Rules:
+- If the patient spoke in a non-English language, provide BOTH the original transcript AND an English translation.
+- If the audio contains only silence, background noise, or unintelligible sounds, respond with exactly: [NO_SPEECH_DETECTED]
+- Otherwise respond with ONLY a JSON object in this exact format (no markdown, no code fences):
+{"originalTranscript": "exact words spoken", "englishTranslation": "English translation of the words"}`;
+
+  // Try multiple model endpoints in case one is deprecated
+  const models = [
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-2.0-flash-lite',
+  ];
+
+  let lastError = '';
+
+  for (const model of models) {
+    try {
+      console.log(`[PulseCheck] Trying model: ${model}`);
 
       const requestBody = {
         contents: [{
           parts: [
-            { text: `Transcribe the patient's spoken words in this audio verbatim (Language context: ${lang || 'Unknown'}). If they spoke in a language other than English, provide the original transcript and the English translation. If the audio is pure silence or unintelligible noise, reply with: [NO_SPEECH_DETECTED]. Format as JSON: {"originalTranscript": "...", "englishTranslation": "..."}` },
+            { text: prompt },
             {
               inlineData: {
-                mimeType: audioBlob.type.split(';')[0] || "audio/webm",
+                mimeType: audioMime,
                 data: base64Audio
               }
             }
@@ -56,51 +93,77 @@ export const transcribeAudioBlob = async (audioBlob: Blob, lang?: Language, live
         }]
       };
 
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      });
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        }
+      );
 
-      if (res.ok) {
-        const data = await res.json();
-        const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        if (textResponse.includes('[NO_SPEECH_DETECTED]')) {
-          throw new Error('NO_SPEECH');
-        }
-        try {
-          const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            if (parsed.originalTranscript === '[NO_SPEECH_DETECTED]') {
-               throw new Error('NO_SPEECH');
-            }
-            return {
-              originalTranscript: parsed.originalTranscript || '[Audio Recording Attached - Direct Physician Review Required]',
-              englishTranslation: parsed.englishTranslation || '[Audio Recording Attached - Direct Physician Review Required]',
-              audioBlobUrl
-            };
-          }
-        } catch (parseError) {
-          if (parseError instanceof Error && parseError.message === 'NO_SPEECH') throw parseError;
-          console.warn("Failed to parse Gemini JSON response", parseError);
-        }
-      } else {
-        const errText = await res.text();
-        console.error("Gemini Audio API Error:", errText);
+      if (!res.ok) {
+        const errBody = await res.text();
+        console.warn(`[PulseCheck] Model ${model} returned ${res.status}:`, errBody);
+        lastError = `API returned ${res.status}: ${errBody.substring(0, 200)}`;
+        continue; // Try next model
       }
-    } catch (e: any) {
-      if (e.message === 'NO_SPEECH') {
+
+      const data = await res.json();
+      const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+      console.log('[PulseCheck] Gemini response:', textResponse.substring(0, 300));
+
+      // Check for no speech
+      if (textResponse.includes('[NO_SPEECH_DETECTED]')) {
         throw new Error('NO_SPEECH');
       }
-      console.error("Gemini API fallback failed", e);
+
+      // Parse JSON from response
+      const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+
+        if (parsed.originalTranscript === '[NO_SPEECH_DETECTED]') {
+          throw new Error('NO_SPEECH');
+        }
+
+        const originalTranscript = parsed.originalTranscript || '';
+        const englishTranslation = parsed.englishTranslation || originalTranscript;
+
+        if (originalTranscript.length > 0) {
+          console.log('[PulseCheck] Transcription successful via', model);
+          return {
+            originalTranscript,
+            englishTranslation,
+            audioBlobUrl
+          };
+        }
+      }
+
+      // If we got a response but couldn't parse it, use the raw text as transcript
+      if (textResponse.length > 5 && !textResponse.includes('[NO_SPEECH_DETECTED]')) {
+        console.log('[PulseCheck] Using raw Gemini text as transcript');
+        return {
+          originalTranscript: textResponse.trim(),
+          englishTranslation: textResponse.trim(),
+          audioBlobUrl
+        };
+      }
+
+      lastError = 'Could not parse transcription from API response';
+
+    } catch (e: any) {
+      if (e.message === 'NO_SPEECH') {
+        throw e;
+      }
+      console.warn(`[PulseCheck] Model ${model} failed:`, e.message);
+      lastError = e.message;
+      continue; // Try next model
     }
   }
 
-  // If API key is unavailable or fails, DO NOT block the user.
-  return {
-    originalTranscript: '[Audio Recording Attached - Direct Physician Review Required]',
-    englishTranslation: '[Audio Recording Attached - Direct Physician Review Required]',
-    audioBlobUrl
-  };
+  // All models failed — throw a visible error instead of silently returning placeholder
+  console.error('[PulseCheck] All Gemini models failed. Last error:', lastError);
+  throw new Error(`TRANSCRIPTION_FAILED: ${lastError}`);
 };

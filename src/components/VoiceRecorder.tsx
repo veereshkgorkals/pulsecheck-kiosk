@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Mic, Square, RotateCcw, Check, Loader2, Play, Pause } from 'lucide-react';
 import { translations, type Language } from '../i18n';
 import { transcribeAudioBlob, type TranscriptionResult } from '../services/transcriptionService';
@@ -241,8 +241,14 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ lang, onTranscribe
       console.error('[PulseCheck] Transcription error:', err);
       if (err.message === 'NO_SPEECH') {
         setErrorMsg('No clear speech detected. Please speak closer to your microphone and try again.');
+      } else if (err.message === 'API_KEY_MISSING') {
+        setErrorMsg('Transcription service not configured. Please ensure VITE_GEMINI_API_KEY is set in Netlify environment variables and redeploy.');
+      } else if (err.message === 'AUDIO_CONVERSION_FAILED') {
+        setErrorMsg('Could not process the audio recording. Please try re-recording.');
+      } else if (err.message?.startsWith('TRANSCRIPTION_FAILED')) {
+        setErrorMsg(`Transcription failed: ${err.message.replace('TRANSCRIPTION_FAILED: ', '')}. Please try re-recording or type your symptoms manually.`);
       } else {
-        setErrorMsg('Transcription failed. Please re-record and try again.');
+        setErrorMsg('Transcription failed. Please re-record or type your symptoms manually.');
       }
     } finally {
       setIsTranscribing(false);
