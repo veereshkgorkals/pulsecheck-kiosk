@@ -62,9 +62,32 @@ export function IntakeForm({ lang, speak, getTtsButtonClass, onComplete }: Intak
     setError('');
   };
 
-  const handleTranscription = (result: TranscriptionResult) => {
+  const handleTranscription = async (result: TranscriptionResult) => {
     updateForm('voiceRecording', result);
-    updateForm('chiefComplaint', result.englishTranslation);
+    updateForm('chiefComplaint', result.originalTranscript);
+    
+    // Auto-run semantic analysis
+    try {
+      setIsSubmitting(true);
+      const analysis = await analyzeNarrative(result.originalTranscript, result.englishTranslation, lang);
+      if (analysis.isValidClinicalInput !== false) {
+        updateForm('aiAnalysis', analysis);
+        updateForm('painSeverity', analysis.aiAssignedPainSeverity);
+        if (analysis.detectedOnsetCategory) {
+          updateForm('onset', analysis.detectedOnsetCategory);
+        }
+        const bStr = analysis.clinicalBulletPoints.join(' ').toLowerCase();
+        if (bStr.includes('sharp')) updateForm('character', t.characterChips[0]);
+        else if (bStr.includes('dull')) updateForm('character', t.characterChips[1]);
+        else if (bStr.includes('burn')) updateForm('character', t.characterChips[2]);
+        else if (bStr.includes('throb')) updateForm('character', t.characterChips[3]);
+        else if (bStr.includes('ach')) updateForm('character', t.characterChips[4]);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const nextStep = async () => {

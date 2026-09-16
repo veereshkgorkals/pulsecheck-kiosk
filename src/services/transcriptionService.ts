@@ -25,13 +25,24 @@ export const transcribeAudioBlob = async (audioBlob: Blob, lang?: Language, live
 
   if (apiKey) {
     try {
-      const { blobToBase64 } = await import('../utils/audioUtils');
-      const base64Audio = await blobToBase64(audioBlob);
+      let base64Audio = '';
+      try {
+        const { blobToBase64 } = await import('../utils/audioUtils');
+        base64Audio = await blobToBase64(audioBlob);
+      } catch (e) {
+        // inline fallback if utils import fails
+        base64Audio = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(audioBlob);
+        });
+      }
 
       const requestBody = {
         contents: [{
           parts: [
-            { text: `Transcribe the patient's spoken words verbatim in the language spoken (Language: ${lang || 'Unknown'}), followed by an accurate English translation. Format as JSON: {"originalTranscript": "...", "englishTranslation": "..."}` },
+            { text: `Transcribe the patient's spoken words exactly as spoken (Language: ${lang || 'Unknown'}), followed by an accurate English translation. Format as JSON: {"originalTranscript": "...", "englishTranslation": "..."}` },
             {
               inlineData: {
                 mimeType: audioBlob.type.split(';')[0] || "audio/webm",
