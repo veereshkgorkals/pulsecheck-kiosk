@@ -23,36 +23,32 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ lang, onTranscribe
   const timerIntervalRef = useRef<number | null>(null);
   const recognitionRef = useRef<any>(null);
 
+  const [recordedDuration, setRecordedDuration] = useState<number>(0);
   const startTimeRef = useRef<number>(0);
-  const recordedDurationRef = useRef<number>(0);
 
   const startRecording = async () => {
     try {
       setErrorMsg('');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      const getSupportedMimeType = () => {
-        const types = [
-          'audio/webm;codecs=opus',
-          'audio/webm',
-          'audio/mp4',
-          'audio/aac',
-          'audio/ogg'
-        ];
-        return types.find(type => MediaRecorder.isTypeSupported(type)) || '';
-      };
+      let mimeType = 'audio/webm';
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus';
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
+      }
       
-      const mimeType = getSupportedMimeType();
-      const options = mimeType ? { mimeType } : undefined;
-      const mediaRecorder = new MediaRecorder(stream, options);
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
       setLiveTranscript('');
 
-      // Initialize Speech Recognition
+      // Initialize Speech Recognition ONLY on non-mobile devices to prevent mic track starvation
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
+      
+      if (SpeechRecognition && !isMobile) {
         const recognition = new SpeechRecognition();
         recognitionRef.current = recognition;
         recognition.continuous = false;
@@ -77,7 +73,6 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ lang, onTranscribe
           console.warn('Speech recognition error:', event.error);
         };
 
-        // Delay to let hardware warm up and prevent contention on mobile
         setTimeout(() => {
           try {
             if (mediaRecorder.state === 'recording') {
@@ -92,8 +87,8 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ lang, onTranscribe
       };
 
       mediaRecorder.onstop = () => {
-        const stopTime = Date.now();
-        recordedDurationRef.current = Math.max(1, Math.round((stopTime - startTimeRef.current) / 1000));
+        const durationSec = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000));
+        setRecordedDuration(durationSec);
         const typeToUse = mimeType || 'audio/webm';
         const blob = new Blob(chunksRef.current, { type: typeToUse });
         setAudioBlob(blob);
@@ -176,6 +171,17 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ lang, onTranscribe
     };
   }, []);
 
+  const handleAudioLoadedMetadata = (e: React.SyntheticEvent<HTMLAudioElement>) => {
+    const audio = e.currentTarget;
+    if (audio.duration === Infinity || isNaN(audio.duration) || audio.duration > 3600) {
+      audio.currentTime = 1e101;
+      audio.ontimeupdate = () => {
+        audio.ontimeupdate = null;
+        audio.currentTime = 0;
+      };
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
@@ -187,22 +193,13 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ lang, onTranscribe
       <div className="p-4 border border-slate-200 rounded-lg bg-white shadow-sm flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold text-slate-700">{(t as any).originalAudio || 'Recorded Audio'}</span>
-          <span className="text-xs text-slate-500">{formatTime(recordedDurationRef.current || timer)} / 01:00</span>
+          <span className="text-xs text-slate-500">{formatTime(recordedDuration || timer)} / 01:00</span>
         </div>
         <audio 
           src={audioUrl} 
           controls 
           className="w-full h-10" 
-          onLoadedMetadata={(e) => {
-            const audioEl = e.currentTarget;
-            if (audioEl.duration === Infinity || isNaN(audioEl.duration) || audioEl.duration > recordedDurationRef.current + 2) {
-              audioEl.currentTime = 1e101;
-              audioEl.ontimeupdate = () => {
-                audioEl.ontimeupdate = null;
-                audioEl.currentTime = 0;
-              };
-            }
-          }}
+          onLoadedMetadata={handleAudioLoadedMetadata}
         />
         <div className="flex gap-2 justify-end">
           <button 

@@ -25,6 +25,9 @@ export const transcribeAudioBlob = async (audioBlob: Blob, lang?: Language, live
 
   if (apiKey) {
     try {
+      console.log("Audio Blob Type:", audioBlob.type, "Size:", audioBlob.size);
+      console.log("Gemini API Key exists:", !!import.meta.env.VITE_GEMINI_API_KEY);
+
       let base64Audio = '';
       try {
         const { blobToBase64 } = await import('../utils/audioUtils');
@@ -42,7 +45,7 @@ export const transcribeAudioBlob = async (audioBlob: Blob, lang?: Language, live
       const requestBody = {
         contents: [{
           parts: [
-            { text: `Transcribe the patient's spoken words exactly as spoken (Language: ${lang || 'Unknown'}), followed by an accurate English translation. Format as JSON: {"originalTranscript": "...", "englishTranslation": "..."}` },
+            { text: `Transcribe the patient's spoken words in this audio verbatim (Language context: ${lang || 'Unknown'}). If they spoke in a language other than English, provide the original transcript and the English translation. If the audio is pure silence or unintelligible noise, reply with: [NO_SPEECH_DETECTED]. Format as JSON: {"originalTranscript": "...", "englishTranslation": "..."}` },
             {
               inlineData: {
                 mimeType: audioBlob.type.split(';')[0] || "audio/webm",
@@ -62,10 +65,16 @@ export const transcribeAudioBlob = async (audioBlob: Blob, lang?: Language, live
       if (res.ok) {
         const data = await res.json();
         const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (textResponse.includes('[NO_SPEECH_DETECTED]')) {
+          throw new Error('NO_SPEECH');
+        }
         try {
           const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             const parsed = JSON.parse(jsonMatch[0]);
+            if (parsed.originalTranscript === '[NO_SPEECH_DETECTED]') {
+               throw new Error('NO_SPEECH');
+            }
             return {
               originalTranscript: parsed.originalTranscript || '[Audio Recording Attached - Direct Physician Review Required]',
               englishTranslation: parsed.englishTranslation || '[Audio Recording Attached - Direct Physician Review Required]',
@@ -73,13 +82,17 @@ export const transcribeAudioBlob = async (audioBlob: Blob, lang?: Language, live
             };
           }
         } catch (parseError) {
+          if (parseError instanceof Error && parseError.message === 'NO_SPEECH') throw parseError;
           console.warn("Failed to parse Gemini JSON response", parseError);
         }
       } else {
         const errText = await res.text();
         console.error("Gemini Audio API Error:", errText);
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (e.message === 'NO_SPEECH') {
+        throw new Error('NO_SPEECH');
+      }
       console.error("Gemini API fallback failed", e);
     }
   }
