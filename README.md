@@ -4,7 +4,6 @@
   <a href="https://pulsecheck-health.netlify.app">🌐 Live Demo</a> •
   <a href="#features">Features</a> •
   <a href="#tech-stack">Tech Stack</a> •
-  <a href="#getting-started">Getting Started</a> •
   <a href="#environment-variables">Environment Variables</a> •
   <a href="#architecture">Architecture</a>
 </div>
@@ -57,25 +56,9 @@ Every year, millions of patients wait hours in crowded Outpatient Departments (O
 
 ---
 
-## 🚀 Getting Started
+## 🔑 Environment Variables
 
-### Prerequisites
-* **Node.js** >= 18.x
-* **npm** >= 9.x
-* A **Google Gemini API Key** ([Google AI Studio](https://aistudio.google.com/apikey))
+Create a `.env` file in the project root:
 
-### Installation
-
-```bash
-# Clone the repository
-git clone [https://github.com/veereshkgorkals/pulsecheck-kiosk.git](https://github.com/veereshkgorkals/pulsecheck-kiosk.git)
-cd pulsecheck-kiosk
-
-# Install dependencies
-npm install
-
-# Set up your environment file
-cp .env.example .env
-
-# Start the local development server
-npm run dev
+```env
+VITE_GEMINI_API_KEY=your_gemini_api_key_here
