@@ -1,32 +1,81 @@
-# React + TypeScript + Vite
+<div align="center">
+  <h1>🩺 PulseCheck — AI-Powered Multilingual Patient Triage Kiosk</h1>
+  <p><strong>Smarter Intake. Faster Care. Zero Language Barriers.</strong></p>
+  <a href="https://pulsecheck-health.netlify.app">🌐 Live Demo</a> •
+  <a href="#features">Features</a> •
+  <a href="#tech-stack">Tech Stack</a> •
+  <a href="#getting-started">Getting Started</a> •
+  <a href="#environment-variables">Environment Variables</a> •
+  <a href="#architecture">Architecture</a>
+</div>
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+---
 
-Currently, two official plugins are available:
+## 📖 About
+Every year, millions of patients wait hours in crowded Outpatient Departments (OPDs) and Emergency Rooms, often struggling to communicate their symptoms due to language barriers. Triage nurses are overwhelmed, leading to delayed care for critical patients.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+**PulseCheck** is an AI-powered, multilingual self-service intake kiosk designed for clinic and emergency waiting rooms. Patients can **speak or type** their symptoms in their native language. PulseCheck translates, extracts structured clinical summaries, assesses severity, and issues a **digital OPD token** delivered directly to the patient's phone via WhatsApp/SMS.
 
-## React Compiler
+> 🏆 Built for the **Hack to Heal** Hackathon.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the Oxlint configuration
+## ✨ Features
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+### 🧑‍⚕️ Patient-Facing Kiosk
+* **Multilingual Support** — Native UI and voice input across 5 languages: English, Spanish, Hindi, Chinese, and French.
+* **Voice-to-Text Recording** — Hands-free symptom entry with Web Speech API and multimodal Gemini audio transcription fallback for mobile browsers.
+* **AI Clinical Analysis** — Auto-generates structured HPI summaries, detects clinical onset, maps affected anatomy, and locks objective pain severity scores.
+* **Semantic Input Validation** — Rejects gibberish and non-medical keyboard mashing using dual-layer heuristics and AI verification.
+* **Immediate Code-Red SOS** — One-touch emergency trigger that bypasses intake and broadcasts an urgent alarm to provider stations.
+* **Dynamic Doctor Routing** — Live physician directory showing active On-Duty/Off-Duty statuses so patients are routed to available doctors.
+* **Digital OPD Token System** — Daily-resetting sequential tokens (e.g., `#T-001`) with live wait-time estimates.
+* **Formatted WhatsApp OPD Tokens** — One-click dispatch of clinical digital tokens formatted directly for WhatsApp.
+* **Accessibility-First** — Integrated text-to-speech guidance and dark/light mode toggles.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+### 👨‍⚕️ Doctor & Staff Portal
+* **Authorized Access Control** — Protected registration using hospital admin master keys (`HOSP-PULSE-2026`) and role-based login.
+* **Live Duty Management** — Single-click toggle between `🟢 On Duty` and `🔴 Off Duty` to manage queue availability in real time.
+* **Urgency-Sorted Queue** — Patient queue prioritized dynamically by clinical triage level (Red, Yellow, Green).
+* **Code-Red Emergency Banner** — Audible and visual alert banners for immediate waiting-room SOS interventions.
+* **1-Click SOAP EHR Export** — Formatted subjective and objective clinical summaries ready for EHR transfer.
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **Frontend Framework** | React 18 + TypeScript |
+| **Build Tool** | Vite |
+| **Styling & Icons** | Tailwind CSS, Lucide React |
+| **Animations** | Framer Motion |
+| **AI Engine** | Google Gemini API (`gemini-1.5-flash` / multimodal audio) |
+| **Audio & Speech APIs** | Web Speech API (`SpeechRecognition`, `SpeechSynthesis`), MediaStream Recording API |
+| **Hosting & Deployment** | Netlify |
+| **Version Control** | Git + GitHub |
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+* **Node.js** >= 18.x
+* **npm** >= 9.x
+* A **Google Gemini API Key** ([Google AI Studio](https://aistudio.google.com/apikey))
+
+### Installation
+
+```bash
+# Clone the repository
+git clone [https://github.com/veereshkgorkals/pulsecheck-kiosk.git](https://github.com/veereshkgorkals/pulsecheck-kiosk.git)
+cd pulsecheck-kiosk
+
+# Install dependencies
+npm install
+
+# Set up your environment file
+cp .env.example .env
+
+# Start the local development server
+npm run dev
